@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles, Camera, Mic, ShoppingBag, Layers, Package, Users, Sliders,
   TrendingUp, Send, CheckCircle, FileText, ArrowRight, ShieldCheck, RefreshCw,
@@ -321,33 +321,50 @@ export default function App() {
 
 
   // PILLAR 2: Web Speech API & Multilingual Voice Auto-Cataloger Logic
-  const [recognitionRef, setRecognitionRef] = useState(null);
+  const speechRecRef = useRef(null);
+  const isRecordingRef = useRef(false);
+
+  const stopVoiceRecording = () => {
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    if (speechRecRef.current) {
+      try {
+        speechRecRef.current.onend = null;
+        speechRecRef.current.onerror = null;
+        speechRecRef.current.stop();
+      } catch (e) {}
+      speechRecRef.current = null;
+    }
+    showToast('🔴 Mic Stopped.');
+  };
 
   const toggleVoiceRecording = () => {
-    if (isRecording) {
-      if (recognitionRef) {
-        try { recognitionRef.stop(); } catch (e) {}
-      }
-      setIsRecording(false);
-      showToast('🔴 Mic Stopped');
+    if (isRecordingRef.current) {
+      stopVoiceRecording();
       return;
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      showToast('⚠️ Web Speech API not supported on this browser. You can type or edit your note in the box below!');
+      showToast('⚠️ Speech recognition API not supported on this browser. You can type or select a voice preset below!');
       return;
     }
 
     try {
+      if (speechRecRef.current) {
+        try { speechRecRef.current.stop(); } catch (e) {}
+      }
+
       const recognition = new SpeechRecognition();
+      speechRecRef.current = recognition;
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = selectedLanguage;
 
       recognition.onstart = () => {
+        isRecordingRef.current = true;
         setIsRecording(true);
-        showToast(`🎙️ Recording started (${selectedLanguage === 'hi-IN' ? 'Hindi' : selectedLanguage === 'bn-IN' ? 'Bengali' : selectedLanguage === 'ta-IN' ? 'Tamil' : 'English'}). Speak now!`);
+        showToast(`🎙️ Mic ACTIVE (${selectedLanguage === 'hi-IN' ? 'Hindi' : selectedLanguage === 'bn-IN' ? 'Bengali' : selectedLanguage === 'ta-IN' ? 'Tamil' : 'English'}). Speak now!`);
       };
 
       recognition.onresult = (event) => {
@@ -361,20 +378,38 @@ export default function App() {
       };
 
       recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        showToast(`⚠️ Mic Notice: ${event.error}`);
+        console.warn('Speech recognition notice:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          isRecordingRef.current = false;
+          setIsRecording(false);
+          showToast('⚠️ Mic permission blocked! Please allow microphone access in your browser address bar.');
+        }
       };
 
       recognition.onend = () => {
-        setIsRecording(false);
+        if (isRecordingRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            setTimeout(() => {
+              if (isRecordingRef.current) {
+                try { recognition.start(); } catch (err) {}
+              }
+            }, 300);
+          }
+        } else {
+          setIsRecording(false);
+        }
       };
 
+      isRecordingRef.current = true;
+      setIsRecording(true);
       recognition.start();
-      setRecognitionRef(recognition);
     } catch (err) {
-      console.error(err);
+      console.error('Mic start error:', err);
+      isRecordingRef.current = false;
       setIsRecording(false);
+      showToast('⚠️ Could not open microphone. Please verify mic permissions.');
     }
   };
 
@@ -2087,12 +2122,44 @@ export default function App() {
                       </button>
                     </div>
 
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '100%', fontWeight: '600' }}>Quick Voice Sample Presets:</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setVoiceText('Yeh Jaipur ki pure terracotta clay water pot hai, hand-carved floral design ke sath, 1.5 liter capacity.')} 
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', cursor: 'pointer' }}
+                      >
+                        🏺 Terracotta Pot
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setVoiceText('Yeh Banaras ki pure silk handloom saree hai, traditional zari embroidery and floral motif ke sath, 6.5 meter size.')} 
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', cursor: 'pointer' }}
+                      >
+                        🥻 Banarasi Saree
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setVoiceText('Channapatna handcrafted wooden toy elephant, organic non-toxic lacquer color, eco-friendly kid toy.')} 
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', cursor: 'pointer' }}
+                      >
+                        🐘 Wooden Toy
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setVoiceText('Yeh Jaipur hand carved solid brass oil diya lamp hai, peacock design motif, pure metal.')} 
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-elevated)', cursor: 'pointer' }}
+                      >
+                        🪔 Brass Diya
+                      </button>
+                    </div>
+
                     <textarea
                       rows={3}
                       className="input-artisan"
                       value={voiceText}
                       onChange={(e) => setVoiceText(e.target.value)}
-                      placeholder="Type or speak product details (e.g., Banarasi silk saree with zari embroidery)..."
+                      placeholder="Speak or type product details (e.g., Banarasi silk saree with zari embroidery)..."
                       style={{ resize: 'none', marginBottom: '14px' }}
                     />
 
