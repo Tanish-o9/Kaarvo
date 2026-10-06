@@ -119,159 +119,45 @@ export default function App() {
     'Jewelry (traditional)': { min: 0.45, max: 0.70, label: '45% – 70%' }
   };
 
-  // Default Sample Products for Rich Desktop Grid Rendering
-  const defaultProducts = [
-    {
-      id: 1,
-      title: 'Handcrafted Terracotta Cooling Water Pitcher',
-      category: 'Pottery / Terracotta',
-      price: 480,
-      originalPrice: 650,
-      rating: 4.9,
-      reviewsCount: 38,
-      artisan: 'Ramswaroop Prajapat',
-      location: 'Jaipur, Rajasthan',
-      description: '1.5L natural eco-friendly cooling clay water jug handcrafted using traditional wheel pottery and relief carving techniques.',
-      materials: 'Natural Clay, Organic Herbal Polish',
-      craftStory: 'Passed down through 4 generations of Prajapat potters in Rajasthan, this pitcher naturally keeps water cool through porous clay evaporation.',
-      image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
-      badge: 'Bestseller'
-    },
-    {
-      id: 2,
-      title: 'Handwoven Pure Chanderi Silk Saree with Zari Motifs',
-      category: 'Textiles / Handloom',
-      price: 2450,
-      originalPrice: 3200,
-      rating: 4.8,
-      reviewsCount: 52,
-      artisan: 'Sunita Devi Weaver Guild',
-      location: 'Chanderi, Madhya Pradesh',
-      description: 'Authentic lightweight handloom Chanderi silk saree featuring delicate gold zari peacocks woven over 14 days.',
-      materials: 'Mulberry Silk, Gold Zari Thread',
-      craftStory: 'Woven on traditional pit looms in Chanderi, celebrated for its translucent texture and Royal Maratha heritage patronage.',
-      image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-      badge: 'Heritage Craft'
-    },
-    {
-      id: 3,
-      title: 'Solid Brass Dhokra Lost-Wax Tribal Sculpture',
-      category: 'Metal craft',
-      price: 980,
-      originalPrice: 1250,
-      rating: 5.0,
-      reviewsCount: 19,
-      artisan: 'Bishnu Jhara',
-      location: 'Bastar, Chhattisgarh',
-      description: 'Ancient 4,000-year-old lost-wax casting technique non-ferrous metal statue of traditional tribal musicians.',
-      materials: 'Recycled Brass, Beeswax, Clay Mold',
-      craftStory: 'Every Dhokra piece is entirely unique since the clay and wax mold is broken open to release the cooled metal figurine.',
-      image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80',
-      badge: '4,000 Yr Heritage'
-    },
-    {
-      id: 4,
-      title: 'Carved Sheesham Wood Floral Jewelry Trunk',
-      category: 'Woodwork',
-      price: 1350,
-      originalPrice: 1800,
-      rating: 4.7,
-      reviewsCount: 24,
-      artisan: 'Mohammad Rashid Woodcarvers',
-      location: 'Saharanpur, Uttar Pradesh',
-      description: 'Hand-carved Indian Rosewood box with velvet lining and brass latch for heirloom jewelry storage.',
-      materials: 'Sheesham Wood, Brass Hardware, Velvet',
-      craftStory: 'Saharanpur is famous worldwide for intricate lattice jaali woodwork carved with hand chisels.',
-      image: 'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=800&q=80',
-      badge: 'Fair Trade'
-    },
-    {
-      id: 5,
-      title: 'Traditional Kundan Meenakari Peacock Earrings',
-      category: 'Jewelry (traditional)',
-      price: 1120,
-      originalPrice: 1500,
-      rating: 4.9,
-      reviewsCount: 31,
-      artisan: 'Meenakari Guild Jaipur',
-      location: 'Jaipur, Rajasthan',
-      description: 'Hand-enameled Royal Rajasthani peacock earrings studded with semi-precious stone embellishments.',
-      materials: 'Brass Alloy, Enamel Color, Pearls',
-      craftStory: 'Brought to Jaipur by Raja Man Singh I, Meenakari is the art of fusing vibrant colors onto intricate metal grooves.',
-      image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80',
-      badge: 'Royal Heritage'
-    },
-    {
-      id: 6,
-      title: 'Blue Pottery Handpainted Decorative Wall Plate',
-      category: 'Pottery / Terracotta',
-      price: 850,
-      originalPrice: 1100,
-      rating: 4.8,
-      reviewsCount: 29,
-      artisan: 'Kripal Blue Pottery Studio',
-      location: 'Jaipur, Rajasthan',
-      description: 'Turquoise quartz clay decorative plate handpainted with Persian floral arabesque motifs.',
-      materials: 'Quartz Powder, Multani Mitti, Oxide Colors',
-      craftStory: 'Unlike clay pottery, Jaipur Blue Pottery uses quartz stone powder which gives it its distinct glassy glaze.',
-      image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
-      badge: 'GI Tagged'
-    },
-    {
-      id: 7,
-      title: 'Bagh Block Print Organic Cotton Dupatta',
-      category: 'Textiles / Handloom',
-      price: 950,
-      originalPrice: 1300,
-      rating: 4.9,
-      reviewsCount: 41,
-      artisan: 'Khatri Artisan Guild',
-      location: 'Dhar, Madhya Pradesh',
-      description: 'Natural vegetable dyed hand block printed cotton stole made with teak wood blocks.',
-      materials: '100% Organic Cotton, Natural Madder Root Dye',
-      craftStory: 'Bagh prints use 100% natural vegetable dyes processed in Bagh river water rich in copper content.',
-      image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
-      badge: 'Eco Friendly'
-    },
-    {
-      id: 8,
-      title: 'Bidriware Silver Inlay Brass Incense Burner',
-      category: 'Metal craft',
-      price: 1650,
-      originalPrice: 2200,
-      rating: 5.0,
-      reviewsCount: 16,
-      artisan: 'Bidar Craft Collective',
-      location: 'Bidar, Karnataka',
-      description: 'Zinc-copper black metal vessel inlaid with pure 99.9% silver wire detailing.',
-      materials: 'Zinc Alloy, Pure Silver Wire, Bidar Soil',
-      craftStory: 'Bidriware gets its jet black oxidized color from unique historical soil found inside Bidar Fort.',
-      image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80',
-      badge: 'Royal Craft'
-    }
-  ];
-
-  // Fetch DB data
+  // Fetch DB data from Django API
   const fetchData = async () => {
     setLoading(true);
     try {
       const pRes = await fetch(`${API_BASE}/products`);
       if (pRes.ok) {
         const data = await pRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
+        if (Array.isArray(data)) {
+          const mapped = data.map(item => ({
+            id: item.id,
+            title: item.title || 'Handcrafted Artisan Product',
+            category: item.category || 'Handicrafts',
+            price: parseFloat(item.price) > 0 ? parseFloat(item.price) : (parseFloat(item.suggested_min_price) > 0 ? parseFloat(item.suggested_min_price) : 480),
+            originalPrice: parseFloat(item.suggested_max_price) > 0 ? parseFloat(item.suggested_max_price) : null,
+            rating: item.quality_score ? (item.quality_score / 20).toFixed(1) : 4.9,
+            reviewsCount: item.views_count || 12,
+            artisan: item.artisan_name || 'Verified Artisan',
+            location: item.location || 'Jaipur, Rajasthan',
+            description: item.description || item.voice_transcript || 'Authentic handcrafted item produced by verified master artisan.',
+            materials: item.verified_facts?.materials || 'Natural Pure Clay / Handloom Silk',
+            craftStory: item.pricing_explanation || 'Preserving centuries of traditional Indian craftsmanship with 100% fair trade direct market linkage.',
+            image: (item.media && item.media.length > 0 && item.media[0].file_url)
+              ? item.media[0].file_url
+              : 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80',
+            badge: item.verification_state === 'org_verified' ? 'Verified Heritage' : 'Fair Trade'
+          }));
+          setProducts(mapped);
         } else {
-          setProducts(defaultProducts);
+          setProducts([]);
         }
       } else {
-        setProducts(defaultProducts);
+        setProducts([]);
       }
 
       const oRes = await fetch(`${API_BASE}/orders`);
       if (oRes.ok) setOrders(await oRes.json());
     } catch (err) {
       console.error(err);
-      setProducts(defaultProducts);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -923,8 +809,20 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="desktop-grid-4">
-                      {products.map(p => (
+                    {products.length === 0 ? (
+                      <div className="card-artisan" style={{ padding: '48px 24px', textAlign: 'center', background: '#FFFFFF' }}>
+                        <Package size={42} color="var(--primary)" style={{ marginBottom: '14px' }} />
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '6px' }}>No Published Products Yet</h3>
+                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 20px' }}>
+                          Be the first artisan to publish authentic handicrafts using our 3-Pillar AI Studio (Photo & Voice auto-cataloger)!
+                        </p>
+                        <button className="btn-artisan-primary" onClick={() => switchMode('artisan')} style={{ padding: '12px 24px' }}>
+                          + Catalog Product in 3-Pillar AI Studio
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="desktop-grid-4">
+                        {products.map(p => (
                         <div
                           key={p.id}
                           className="card-artisan"
@@ -1000,6 +898,7 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                    )}
                   </div>
                 </section>
 
