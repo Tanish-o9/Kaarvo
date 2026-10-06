@@ -364,16 +364,25 @@ export default function App() {
       recognition.onstart = () => {
         isRecordingRef.current = true;
         setIsRecording(true);
+        // Clear default terracotta placeholder text if present when starting a new mic recording
+        setVoiceText(prev => {
+          if (prev.includes('Yeh Jaipur ki pure terracotta clay water pot hai')) return '';
+          return prev;
+        });
         showToast(`🎙️ Mic ACTIVE (${selectedLanguage === 'hi-IN' ? 'Hindi' : selectedLanguage === 'bn-IN' ? 'Bengali' : selectedLanguage === 'ta-IN' ? 'Tamil' : 'English'}). Speak now!`);
       };
 
       recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let fullTranscript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item && item[0] && item[0].transcript) {
+            fullTranscript += item[0].transcript + ' ';
+          }
         }
-        if (transcript.trim()) {
-          setVoiceText(transcript);
+        const cleaned = fullTranscript.trim();
+        if (cleaned) {
+          setVoiceText(cleaned);
         }
       };
 
@@ -417,61 +426,61 @@ export default function App() {
     const raw = (text || '').trim();
     const lower = raw.toLowerCase();
 
-    // 1. Detect Category
+    // 1. Detect Category (Supports Hinglish, English, Devanagari Hindi, Bengali, Tamil)
     let category = 'Artisanal Handicrafts';
-    if (/(saree|shawl|stole|dupatta|handloom|cloth|fabric|silk|cotton|weave|weaving|kurta|khadi|embroidery|zari)/i.test(lower)) {
+    if (/(saree|shawl|stole|dupatta|handloom|cloth|fabric|silk|cotton|weave|weaving|kurta|khadi|embroidery|zari|साड़ी|साड़ी|सिल्क|रेशम|कपड़ा|कपड़ा|हथकरघा|सलवार|कुर्ता)/i.test(lower)) {
       category = 'Textiles / Handloom';
-    } else if (/(pottery|terracotta|clay|jug|pot|matka|miti|mitti|vase|pitcher|planter|ceramic)/i.test(lower)) {
+    } else if (/(pottery|terracotta|clay|jug|pot|matka|miti|mitti|vase|pitcher|planter|ceramic|मिट्टी|घड़ा|मटका|बर्तन|कुम्हार|सुराही)/i.test(lower)) {
       category = 'Pottery / Terracotta';
-    } else if (/(wood|wooden|carving|carved|channapatna|timber|teak|sheesham|toy|sculpture|furniture)/i.test(lower)) {
+    } else if (/(wood|wooden|carving|carved|channapatna|timber|teak|sheesham|toy|sculpture|furniture|लकड़ी|लकड़ी|खिलौना|नक्काशी)/i.test(lower)) {
       category = 'Woodwork';
-    } else if (/(brass|copper|silver|metal|diya|statue|bell|idol|bronze|oxidized|jewelry|jewel|necklace|ring|bangle|earring)/i.test(lower)) {
-      category = (/(jewelry|jewel|necklace|ring|bangle|earring)/i.test(lower))
+    } else if (/(brass|copper|silver|metal|diya|statue|bell|idol|bronze|oxidized|jewelry|jewel|necklace|ring|bangle|earring|पीतल|तांबा|ताम्बा|चांदी|चाँदी|मूर्ति|दीया|दिया|आभूषण|गहने|हार|झुमके)/i.test(lower)) {
+      category = (/(jewelry|jewel|necklace|ring|bangle|earring|आभूषण|गहने|हार|झुमके)/i.test(lower))
         ? 'Jewelry (traditional)'
         : 'Metal craft';
-    } else if (/(painting|canvas|art|madhubani|warli|pattachitra|miniature|tanjore)/i.test(lower)) {
+    } else if (/(painting|canvas|art|madhubani|warli|pattachitra|miniature|tanjore|चित्रकारी|पेंटिंग|चित्र)/i.test(lower)) {
       category = 'Folk Paintings & Art';
     }
 
     // 2. Detect Materials
     const foundMaterials = [];
-    if (/terracotta|red clay|miti|mitti|clay/i.test(lower)) foundMaterials.push('Pure Red Clay');
-    if (/silk|mulberry|tussar|banarasi/i.test(lower)) foundMaterials.push('Pure Mulberry Silk');
-    if (/cotton|khadi/i.test(lower)) foundMaterials.push('Organic Cotton');
-    if (/wood|wooden|teak|sheesham/i.test(lower)) foundMaterials.push('Natural Hardwood');
-    if (/brass/i.test(lower)) foundMaterials.push('Solid Brass');
-    if (/copper/i.test(lower)) foundMaterials.push('Pure Copper');
-    if (/silver|oxidized/i.test(lower)) foundMaterials.push('925 Silver');
-    if (/zari|gold/i.test(lower)) foundMaterials.push('Zari Metallic Thread');
-    if (/paint|dye|vegetable dye/i.test(lower)) foundMaterials.push('Natural Organic Pigments');
+    if (/terracotta|red clay|miti|mitti|clay|मिट्टी|घड़ा/i.test(lower)) foundMaterials.push('Pure Red Clay');
+    if (/silk|mulberry|tussar|banarasi|सिल्क|रेशम/i.test(lower)) foundMaterials.push('Pure Mulberry Silk');
+    if (/cotton|khadi|कॉटन|सूती/i.test(lower)) foundMaterials.push('Organic Cotton');
+    if (/wood|wooden|teak|sheesham|लकड़ी|लकड़ी/i.test(lower)) foundMaterials.push('Natural Hardwood');
+    if (/brass|पीतल/i.test(lower)) foundMaterials.push('Solid Brass');
+    if (/copper|तांबा|ताम्बा/i.test(lower)) foundMaterials.push('Pure Copper');
+    if (/silver|oxidized|चांदी|चाँदी/i.test(lower)) foundMaterials.push('925 Silver');
+    if (/zari|gold|ज़री|जरी/i.test(lower)) foundMaterials.push('Zari Metallic Thread');
+    if (/paint|dye|vegetable dye|रंग/i.test(lower)) foundMaterials.push('Natural Organic Pigments');
     const materials = foundMaterials.length > 0 ? foundMaterials.join(' & ') : 'Authentic Natural Artisan Materials';
 
     // 3. Detect Craft Technique
     let technique = 'Handcrafted Execution';
-    if (/hand-carved|carved|carving/i.test(lower)) technique = 'Hand-Carved Relief & Detailed Shaping';
-    else if (/handloom|woven|weaving/i.test(lower)) technique = 'Traditional Handloom Weaving';
-    else if (/hand-painted|painted|painting/i.test(lower)) technique = 'Hand-Painted Folk Motif Art';
-    else if (/block-print|printed/i.test(lower)) technique = 'Hand Block Printing';
+    if (/hand-carved|carved|carving|नक्काशी/i.test(lower)) technique = 'Hand-Carved Relief & Detailed Shaping';
+    else if (/handloom|woven|weaving|हथकरघा|बुनाई/i.test(lower)) technique = 'Traditional Handloom Weaving';
+    else if (/hand-painted|painted|painting|चित्रकारी/i.test(lower)) technique = 'Hand-Painted Folk Motif Art';
+    else if (/block-print|printed|छपाई/i.test(lower)) technique = 'Hand Block Printing';
     else if (/lathe|lacquer|channapatna/i.test(lower)) technique = 'Lathe Turning & Eco Lacquer Polish';
-    else if (/embossed|engraved|embroidery/i.test(lower)) technique = 'Hand Embossing & Needle Work';
-    else if (/wheel|potter/i.test(lower)) technique = 'Potter Wheel Turning & Kiln Firing';
+    else if (/embossed|engraved|embroidery|कढ़ाई|कढाई/i.test(lower)) technique = 'Hand Embossing & Needle Work';
+    else if (/wheel|potter|चाक/i.test(lower)) technique = 'Potter Wheel Turning & Kiln Firing';
 
     // 4. Detect Region
     let region = 'Artisan Guild, India';
-    if (/jaipur|rajasthan/i.test(lower)) region = 'Jaipur, Rajasthan';
-    else if (/banaras|varanasi/i.test(lower)) region = 'Varanasi, Uttar Pradesh';
-    else if (/channapatna|karnataka/i.test(lower)) region = 'Channapatna, Karnataka';
-    else if (/kanchipuram|tamil/i.test(lower)) region = 'Kanchipuram, Tamil Nadu';
-    else if (/bengal|kolkata/i.test(lower)) region = 'Kolkata, West Bengal';
-    else if (/kashmir|srinagar/i.test(lower)) region = 'Srinagar, Kashmir';
-    else if (/madhubani|bihar/i.test(lower)) region = 'Madhubani, Bihar';
-    else if (/odisha|puri/i.test(lower)) region = 'Puri, Odisha';
-    else if (/gujarat|kutch/i.test(lower)) region = 'Kutch, Gujarat';
+    if (/jaipur|rajasthan|जयपुर|राजस्थान/i.test(lower)) region = 'Jaipur, Rajasthan';
+    else if (/banaras|varanasi|बनारस|वाराणसी/i.test(lower)) region = 'Varanasi, Uttar Pradesh';
+    else if (/channapatna|karnataka|चन्नापटना|कर्नाटक/i.test(lower)) region = 'Channapatna, Karnataka';
+    else if (/kanchipuram|tamil|कांचीपुरम|तमिलनाडु/i.test(lower)) region = 'Kanchipuram, Tamil Nadu';
+    else if (/bengal|kolkata|बंगाल|कोलकाता/i.test(lower)) region = 'Kolkata, West Bengal';
+    else if (/kashmir|srinagar|कश्मीर|श्रीनगर/i.test(lower)) region = 'Srinagar, Kashmir';
+    else if (/madhubani|bihar|मधुबनी|बिहार/i.test(lower)) region = 'Madhubani, Bihar';
+    else if (/odisha|puri|ओडिशा|पुरी/i.test(lower)) region = 'Puri, Odisha';
+    else if (/gujarat|kutch|गुजरात|कच्छ/i.test(lower)) region = 'Kutch, Gujarat';
 
     // 5. Generate Dynamic Product Title
     let clean = raw
-      .replace(/^(yeh|yeh ek|this is|isme|is me|ye|yaha|aapka)\s+/i, '')
-      .replace(/\s+(hai|h|he|hsth|ke sath|with|ka|ki|ke|for sell|for sale)\b/gi, '')
+      .replace(/^(yeh|yeh ek|this is|isme|is me|ye|yaha|aapka|यह|यह एक|इसमे)\s+/i, '')
+      .replace(/\s+(hai|h|he|hsth|ke sath|with|ka|ki|ke|for sell|for sale|है|का|की|के)\b/gi, '')
       .trim();
 
     let title = '';
