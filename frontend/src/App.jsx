@@ -584,20 +584,30 @@ export default function App() {
     }
   };
 
-  // Save generated product to DB
+  // Save generated product to DB & Publish Live to Storefront for all customers
   const handleSaveCatalogToDB = async () => {
-    if (!generatedCatalog) return;
+    let catalogToSave = generatedCatalog;
+    let targetEntities = extractedEntities;
+
+    if (!catalogToSave) {
+      const { catalog, entities } = parseVoiceTextToCatalog(voiceText || 'Handcrafted Artisan Product');
+      catalogToSave = catalog;
+      targetEntities = entities;
+      setExtractedEntities(entities);
+      setGeneratedCatalog(catalog);
+    }
+
     try {
       const newP = {
-        title: generatedCatalog.descriptor.name,
-        description: generatedCatalog.descriptor.long_desc,
-        price: generatedCatalog.price.suggested_range.min,
-        category: generatedCatalog.category,
+        title: catalogToSave.descriptor.name,
+        description: catalogToSave.descriptor.long_desc,
+        price: catalogToSave.price.suggested_range.min,
+        category: catalogToSave.category,
         status: 'published',
         material_cost: materialCost || 180,
         labor_cost: laborCost || 150,
         artisan: 'Ramswaroop Prajapat',
-        location: extractedEntities?.region || 'Jaipur, Rajasthan',
+        location: targetEntities?.region || 'Jaipur, Rajasthan',
         rating: 5.0,
         reviewsCount: 1,
         image: enhancedImage || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'
@@ -614,13 +624,29 @@ export default function App() {
       } else {
         setProducts(prev => [{ id: Date.now(), ...newP }, ...prev]);
       }
-      showToast('🎉 Product Cataloged & Published Live to Kaarvo Store!');
-      switchArtisanTab('dashboard');
+      showToast('🎉 Product Cataloged & Posted Live to Kaarvo Customer Store!');
+      switchMode('customer');
+      switchCustomerTab('shop');
     } catch (err) {
       console.error(err);
-      setProducts(prev => [{ id: Date.now(), ...newP }, ...prev]);
-      showToast('🎉 Product Published to Store!');
-      switchArtisanTab('dashboard');
+      const fallbackP = {
+        id: Date.now(),
+        title: catalogToSave.descriptor.name,
+        description: catalogToSave.descriptor.long_desc,
+        price: catalogToSave.price.suggested_range.min,
+        category: catalogToSave.category,
+        material_cost: materialCost || 180,
+        labor_cost: laborCost || 150,
+        artisan: 'Ramswaroop Prajapat',
+        location: targetEntities?.region || 'Jaipur, Rajasthan',
+        rating: 5.0,
+        reviewsCount: 1,
+        image: enhancedImage || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'
+      };
+      setProducts(prev => [fallbackP, ...prev]);
+      showToast('🎉 Product Posted Live to Customer Store!');
+      switchMode('customer');
+      switchCustomerTab('shop');
     }
   };
 
@@ -2248,19 +2274,53 @@ export default function App() {
 
                 </div>
 
-                {/* GENERATED CATALOG PREVIEW & PUBLISH */}
-                {generatedCatalog && (
-                  <div className="card-artisan" style={{ padding: '32px', background: 'linear-gradient(135deg, #FDF4EF, #FFFFFF)', border: '1px solid var(--primary-border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <span className="badge-tag badge-terracotta">✓ ONDC Beckn Schema Compliant</span>
-                      <button className="btn-artisan-primary" onClick={handleSaveCatalogToDB} style={{ padding: '12px 24px' }}>
-                        Save & Publish Live to Kaarvo Store →
-                      </button>
+                {/* ALWAYS-VISIBLE POST PRODUCT LIVE ACTION CARD */}
+                <div 
+                  className="card-artisan" 
+                  style={{ 
+                    padding: '28px 32px', 
+                    background: 'linear-gradient(135deg, #FFF7ED, #FFFFFF)', 
+                    border: '2px solid var(--primary)', 
+                    borderRadius: '16px',
+                    boxShadow: '0 8px 24px rgba(217, 119, 6, 0.12)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <span className="badge-tag badge-terracotta">✓ Ready to Post Live</span>
+                        <span className="badge-tag badge-teal">✓ ONDC Beckn Sync</span>
+                      </div>
+                      <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)' }}>
+                        {generatedCatalog ? generatedCatalog.descriptor.name : 'Publish Handcrafted Product to Kaarvo Store'}
+                      </h3>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        {generatedCatalog ? generatedCatalog.descriptor.long_desc : 'Click the button to post your product live so all customer users across India can view & purchase it!'}
+                      </p>
                     </div>
-                    <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '8px' }}>{generatedCatalog.descriptor.name}</h3>
-                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{generatedCatalog.descriptor.long_desc}</p>
+
+                    <button 
+                      className="btn-artisan-primary" 
+                      onClick={handleSaveCatalogToDB} 
+                      style={{ 
+                        padding: '14px 28px', 
+                        fontSize: '15px', 
+                        fontWeight: '700',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <Send size={18} />
+                      Post Product Live to All Customers →
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
