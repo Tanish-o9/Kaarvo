@@ -323,10 +323,12 @@ export default function App() {
   // PILLAR 2: Web Speech API & Multilingual Voice Auto-Cataloger Logic
   const speechRecRef = useRef(null);
   const isRecordingRef = useRef(false);
+  const mediaStreamRef = useRef(null);
 
   const stopVoiceRecording = () => {
     isRecordingRef.current = false;
     setIsRecording(false);
+    
     if (speechRecRef.current) {
       try {
         speechRecRef.current.onend = null;
@@ -335,18 +337,38 @@ export default function App() {
       } catch (e) {}
       speechRecRef.current = null;
     }
+
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      } catch (e) {}
+      mediaStreamRef.current = null;
+    }
+
     showToast('🔴 Mic Stopped.');
   };
 
-  const toggleVoiceRecording = () => {
+  const toggleVoiceRecording = async () => {
     if (isRecordingRef.current) {
       stopVoiceRecording();
       return;
     }
 
+    // 1. Explicitly request hardware Microphone stream permission from browser
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+      }
+    } catch (micErr) {
+      console.warn('getUserMedia mic error or permission denied:', micErr);
+      showToast('⚠️ Please click "Allow" in your browser microphone permission pop-up!');
+    }
+
+    // 2. Initialize Web Speech API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      showToast('⚠️ Speech recognition API not supported on this browser. You can type or select a voice preset below!');
+      showToast('⚠️ Speech recognition API not supported on this browser window. You can type or select a voice preset below!');
       return;
     }
 
@@ -391,7 +413,9 @@ export default function App() {
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           isRecordingRef.current = false;
           setIsRecording(false);
-          showToast('⚠️ Mic permission blocked! Please allow microphone access in your browser address bar.');
+          showToast('⚠️ Mic access denied! Click the lock/mic icon in your address bar to enable mic.');
+        } else if (event.error === 'no-speech') {
+          // Ambient silence timeout, maintain recording
         }
       };
 
@@ -2130,6 +2154,24 @@ export default function App() {
                         {isRecording ? 'Listening...' : 'Record'}
                       </button>
                     </div>
+
+                    {isRecording && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#ef4444' }}>
+                          🎙️ Live Mic Hardware Active — Listening... Speak your craft details!
+                        </span>
+                      </div>
+                    )}
 
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '100%', fontWeight: '600' }}>Quick Voice Sample Presets:</span>
