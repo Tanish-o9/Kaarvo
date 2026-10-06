@@ -80,6 +80,119 @@ export default function App() {
   const [rawImageFile, setRawImageFile] = useState(null);
   const [enhancedImage, setEnhancedImage] = useState(null);
   const [imageEnhancing, setImageEnhancing] = useState(false);
+  const [enhancementPreset, setEnhancementPreset] = useState('studio');
+
+  // Process image on HTML5 canvas with studio lighting, backdrop gradient and drop shadow
+  const processCanvasImage = (rawUrl, preset = 'studio') => {
+    if (!rawUrl) return;
+    setImageEnhancing(true);
+
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const maxDim = 1000;
+        let w = img.width || 800;
+        let h = img.height || 800;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+
+        // 1. Draw solid clean studio background
+        if (preset === 'white') {
+          ctx.fillStyle = '#FFFFFF';
+        } else if (preset === 'warm') {
+          ctx.fillStyle = '#FAF4EE';
+        } else {
+          ctx.fillStyle = '#FAF9F6';
+        }
+        ctx.fillRect(0, 0, w, h);
+
+        // 2. Radial studio spotlight gradient
+        const rx = w / 2;
+        const ry = h / 2;
+        const spotGrad = ctx.createRadialGradient(rx, ry * 0.8, w * 0.1, rx, ry, Math.max(w, h) * 0.75);
+        spotGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        spotGrad.addColorStop(1, preset === 'warm' ? 'rgba(243, 230, 215, 0.5)' : 'rgba(230, 224, 216, 0.5)');
+        ctx.fillStyle = spotGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // 3. Apply color filter preset
+        if (preset === 'warm') {
+          ctx.filter = 'brightness(1.10) contrast(1.22) saturate(1.30) sepia(0.05)';
+        } else if (preset === 'hd') {
+          ctx.filter = 'brightness(1.14) contrast(1.35) saturate(1.28)';
+        } else if (preset === 'white') {
+          ctx.filter = 'brightness(1.16) contrast(1.25) saturate(1.12)';
+        } else {
+          // studio pro
+          ctx.filter = 'brightness(1.12) contrast(1.25) saturate(1.22)';
+        }
+
+        // 4. Draw image with studio drop shadow
+        ctx.shadowColor = 'rgba(28, 25, 23, 0.22)';
+        ctx.shadowBlur = Math.round(w * 0.035);
+        ctx.shadowOffsetY = Math.round(h * 0.025);
+
+        const pad = Math.round(w * 0.05);
+        ctx.drawImage(img, pad, pad, w - pad * 2, h - pad * 2);
+
+        // Reset filter & shadow
+        ctx.filter = 'none';
+        ctx.shadowColor = 'transparent';
+
+        // 5. Soft studio vignette border
+        const vigGrad = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.35, rx, ry, Math.max(w, h) * 0.8);
+        vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.07)');
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        setEnhancedImage(dataUrl);
+        setImageEnhancing(false);
+      } catch (err) {
+        console.error(err);
+        setEnhancedImage(rawUrl);
+        setImageEnhancing(false);
+      }
+    };
+    img.onerror = () => {
+      setEnhancedImage(rawUrl);
+      setImageEnhancing(false);
+    };
+    img.src = rawUrl;
+  };
+
+  // PILLAR 1: Dynamic AI Studio Image Enhancer
+  const handleEnhanceImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    setImageEnhancing(true);
+
+    reader.onload = (event) => {
+      const rawUrl = event.target.result;
+      setRawImageFile(rawUrl);
+      processCanvasImage(rawUrl, enhancementPreset);
+      showToast('✨ AI Studio OpenCV Lighting & Background Enhancement Completed!');
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   // --- PILLAR 2: MULTILINGUAL VOICE AUTO-CATALOGER STATES ---
   const [voiceText, setVoiceText] = useState('Yeh Jaipur ki pure terracotta clay water pot hai, hand-carved floral design ke sath, 1.5 liter capacity.');
@@ -241,82 +354,7 @@ export default function App() {
     });
   };
 
-  // PILLAR 1: Dynamic AI Studio Image Enhancer (Client-Side Canvas Processing)
-  const handleEnhanceImage = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    setImageEnhancing(true);
-
-    reader.onload = (event) => {
-      const rawUrl = event.target.result;
-      setRawImageFile(rawUrl);
-
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          // High resolution canvas matching image proportions
-          const maxDim = 1000;
-          let w = img.width;
-          let h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else {
-              w = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-          }
-
-          canvas.width = w;
-          canvas.height = h;
-
-          // 1. Draw solid clean studio background
-          ctx.fillStyle = '#FAF8F5';
-          ctx.fillRect(0, 0, w, h);
-
-          // 2. Draw image with studio lighting, contrast enhancement and color warmth
-          ctx.filter = 'contrast(1.12) brightness(1.05) saturate(1.15)';
-          ctx.drawImage(img, 0, 0, w, h);
-
-          // 3. Apply subtle studio vignette / lighting focus
-          ctx.filter = 'none';
-          const rx = w / 2;
-          const ry = h / 2;
-          const radius = Math.max(w, h) * 0.75;
-          const grad = ctx.createRadialGradient(rx, ry, radius * 0.3, rx, ry, radius);
-          grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-          grad.addColorStop(1, 'rgba(30, 20, 10, 0.08)');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, w, h);
-
-          const enhancedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-          setEnhancedImage(enhancedDataUrl);
-          setImageEnhancing(false);
-          showToast('✨ AI Studio OpenCV Lighting & Color Enhancement Completed!');
-        } catch (err) {
-          console.error(err);
-          setEnhancedImage(rawUrl);
-          setImageEnhancing(false);
-          showToast('✨ Image Uploaded & Processed!');
-        }
-      };
-
-      img.onerror = () => {
-        setEnhancedImage(rawUrl);
-        setImageEnhancing(false);
-      };
-
-      img.src = rawUrl;
-    };
-
-    reader.readAsDataURL(file);
-  };
 
   // PILLAR 2: Multilingual Voice Auto-Cataloger
   const handleGenerateCatalogFromVoice = async () => {
@@ -1856,26 +1894,72 @@ export default function App() {
                       <h3 style={{ fontSize: '18px', fontWeight: '700' }}>Pillar 1: AI Studio Image Enhancer</h3>
                     </div>
 
-                    <label style={{ border: '2px dashed var(--border-strong)', padding: '24px', borderRadius: '14px', display: 'block', textAlign: 'center', cursor: 'pointer', background: 'var(--bg-subtle)', marginBottom: '16px' }}>
+                    <label style={{ border: '2px dashed var(--border-strong)', padding: '20px', borderRadius: '14px', display: 'block', textAlign: 'center', cursor: 'pointer', background: 'var(--bg-subtle)', marginBottom: '16px' }}>
                       <input type="file" accept="image/*" onChange={handleEnhanceImage} style={{ display: 'none' }} />
-                      <Camera size={32} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
+                      <Camera size={32} color="var(--text-muted)" style={{ marginBottom: '6px' }} />
                       <div style={{ fontSize: '14px', fontWeight: '700' }}>{rawImageFile ? 'Change / Upload New Photo' : 'Upload Raw Artisan Photo'}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Select any image from your device</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Select any image file from your device</div>
                     </label>
 
+                    {/* STUDIO ENHANCEMENT PRESETS */}
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Studio Lighting Filter Presets
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {[
+                          { id: 'studio', label: '✨ Studio Pro' },
+                          { id: 'warm', label: '🎨 Warm Artisan' },
+                          { id: 'hd', label: '⚡ HD Contrast' },
+                          { id: 'white', label: '🤍 Pure White' }
+                        ].map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              setEnhancementPreset(p.id);
+                              if (rawImageFile) processCanvasImage(rawImageFile, p.id);
+                            }}
+                            style={{
+                              background: enhancementPreset === p.id ? 'var(--primary)' : 'var(--bg-subtle)',
+                              color: enhancementPreset === p.id ? '#FFF' : 'var(--text-main)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '12px',
+                              padding: '5px 10px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {imageEnhancing && (
-                      <div style={{ textAlign: 'center', color: 'var(--primary)', fontSize: '13px', padding: '12px', background: 'var(--primary-light)', borderRadius: '10px' }}>
-                        <RefreshCw size={18} className="animate-spin" style={{ display: 'inline', marginRight: '6px' }} />
-                        Enhancing uploaded image on HTML5 Canvas...
+                      <div style={{ textAlign: 'center', color: 'var(--primary)', fontSize: '13px', padding: '16px', background: 'var(--primary-light)', borderRadius: '12px' }}>
+                        <RefreshCw size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
+                        Applying AI Studio Backdrop & Lighting Filter...
                       </div>
                     )}
 
-                    {enhancedImage && !imageEnhancing && (
-                      <div style={{ position: 'relative', marginTop: '12px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: '#10B981', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle size={14} /> ✨ Studio Lighting & Color Enhanced
+                    {/* BEFORE vs AFTER COMPARISON VIEW */}
+                    {rawImageFile && enhancedImage && !imageEnhancing && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle size={14} /> ✨ Studio Enhanced Output
                         </div>
-                        <img src={enhancedImage} alt="Enhanced Studio" style={{ width: '100%', height: '200px', objectFit: 'contain', borderRadius: '12px', background: '#FAF8F5', border: '1px solid var(--border-subtle)' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '4px' }}>RAW CAMERA CAPTURE</div>
+                            <img src={rawImageFile} alt="Raw Input" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#F3F1E9', border: '1px solid var(--border-subtle)' }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '800', marginBottom: '4px' }}>AI STUDIO ENHANCED</div>
+                            <img src={enhancedImage} alt="Enhanced Result" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#FAF9F6', border: '2px solid var(--primary)', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.15)' }} />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
