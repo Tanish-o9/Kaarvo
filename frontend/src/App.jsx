@@ -80,10 +80,9 @@ export default function App() {
   const [rawImageFile, setRawImageFile] = useState(null);
   const [enhancedImage, setEnhancedImage] = useState(null);
   const [imageEnhancing, setImageEnhancing] = useState(false);
-  const [enhancementMode, setEnhancementMode] = useState('enhance'); // 'enhance' | 'clean' | 'cutout'
 
-  // Process image on HTML5 canvas with AI Photo Enhancement, Exposure Balancing & Color Boost
-  const processCanvasImage = (rawUrl, mode = 'enhance') => {
+  // Process image on HTML5 canvas with AI Photo Super-Enhancement & Exposure/Color Boost
+  const processCanvasImage = (rawUrl) => {
     if (!rawUrl) return;
     setImageEnhancing(true);
 
@@ -109,51 +108,19 @@ export default function App() {
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        if (mode === 'cutout') {
-          // CUTOUT MODE: White Studio Pedestal Backdrop
-          ctx.fillStyle = '#FAF9F6';
-          ctx.fillRect(0, 0, w, h);
+        // AI PHOTO SUPER-ENHANCER: Keeps photo & background intact, boosts exposure, color vibrance, clarity & contrast
+        ctx.filter = 'contrast(1.22) brightness(1.08) saturate(1.28)';
+        ctx.drawImage(img, 0, 0, w, h);
 
-          const rx = w / 2;
-          const ry = h / 2;
-          const spotGrad = ctx.createRadialGradient(rx, ry * 0.75, w * 0.08, rx, ry, Math.max(w, h) * 0.8);
-          spotGrad.addColorStop(0, '#FFFFFF');
-          spotGrad.addColorStop(1, '#EBE6DC');
-          ctx.fillStyle = spotGrad;
-          ctx.fillRect(0, 0, w, h);
-
-          ctx.filter = 'brightness(1.12) contrast(1.22) saturate(1.20)';
-          ctx.drawImage(img, 0, 0, w, h);
-        } else if (mode === 'clean') {
-          // BACKGROUND NOISE CLEANER: Dimmers harsh background clutter while keeping scene
-          ctx.filter = 'brightness(1.10) contrast(1.25) saturate(1.25)';
-          ctx.drawImage(img, 0, 0, w, h);
-
-          // Central spotlight effect to draw focus to central product
-          const rx = w / 2;
-          const ry = h / 2;
-          const spot = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.25, rx, ry, Math.max(w, h) * 0.8);
-          spot.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
-          spot.addColorStop(1, 'rgba(20, 15, 10, 0.09)');
-          ctx.filter = 'none';
-          ctx.fillStyle = spot;
-          ctx.fillRect(0, 0, w, h);
-        } else {
-          // DEFAULT: AI PHOTO SUPER-ENHANCER & LIGHTING BALANCE
-          // Keeps photo & background intact, dramatically boosts exposure, color vibrance, clarity & contrast!
-          ctx.filter = 'contrast(1.22) brightness(1.08) saturate(1.28)';
-          ctx.drawImage(img, 0, 0, w, h);
-
-          // Soft studio sharpening vignette frame
-          ctx.filter = 'none';
-          const rx = w / 2;
-          const ry = h / 2;
-          const vig = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.45, rx, ry, Math.max(w, h) * 0.85);
-          vig.addColorStop(0, 'rgba(255, 255, 255, 0)');
-          vig.addColorStop(1, 'rgba(30, 20, 10, 0.05)');
-          ctx.fillStyle = vig;
-          ctx.fillRect(0, 0, w, h);
-        }
+        // Soft studio sharpening vignette frame
+        ctx.filter = 'none';
+        const rx = w / 2;
+        const ry = h / 2;
+        const vig = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.45, rx, ry, Math.max(w, h) * 0.85);
+        vig.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        vig.addColorStop(1, 'rgba(30, 20, 10, 0.05)');
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, w, h);
 
         const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         setEnhancedImage(dataUrl);
@@ -184,7 +151,7 @@ export default function App() {
     reader.onload = (event) => {
       const rawUrl = event.target.result;
       setRawImageFile(rawUrl);
-      processCanvasImage(rawUrl, enhancementMode);
+      processCanvasImage(rawUrl);
       showToast('✨ AI Photo Super-Enhancement & Lighting Boost Completed!');
     };
 
@@ -1898,36 +1865,12 @@ export default function App() {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Select any image file from your device</div>
                     </label>
 
-                    {/* AI PHOTO ENHANCEMENT MODE SELECTOR */}
-                    <div style={{ marginBottom: '16px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Sparkles size={14} /> AI Studio Enhancement Mode
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {[
-                          { id: 'enhance', title: '✨ AI Photo Super-Enhance (Recommended)', desc: 'Keeps photo & scene 100% intact. Boosts exposure, color vibrance, clarity & contrast for selling.' },
-                          { id: 'clean', title: '🧹 Background Noise Cleaner', desc: 'Dimmers background clutter & highlights central craft product.' },
-                          { id: 'cutout', title: '🤍 Studio Pedestal Backdrop', desc: 'Places product on white studio stage.' }
-                        ].map(m => (
-                          <div
-                            key={m.id}
-                            onClick={() => {
-                              setEnhancementMode(m.id);
-                              if (rawImageFile) processCanvasImage(rawImageFile, m.id);
-                            }}
-                            style={{
-                              background: enhancementMode === m.id ? 'var(--primary-light)' : 'var(--bg-subtle)',
-                              border: enhancementMode === m.id ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-                              padding: '10px 14px',
-                              borderRadius: '12px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            <div style={{ fontSize: '13px', fontWeight: '800', color: enhancementMode === m.id ? 'var(--primary)' : 'var(--text-main)' }}>{m.title}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{m.desc}</div>
-                          </div>
-                        ))}
+                    {/* AUTOMATED AI PHOTO ENHANCER BADGE */}
+                    <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', padding: '10px 14px', borderRadius: '12px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Sparkles size={16} color="var(--primary)" />
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>AI Photo Super-Enhance Active</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Auto-boosts exposure, color vibrance & sharpness while preserving original scene</div>
                       </div>
                     </div>
 
