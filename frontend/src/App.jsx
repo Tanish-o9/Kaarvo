@@ -9,7 +9,8 @@ import {
 const API_BASE = 'http://127.0.0.1:8000/api/v1';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('cataloger');
+  // FIRST TAB: Dashboard & Kaarvo Store active by default
+  const [activeTab, setActiveTab] = useState('dashboard');
   
   // Real DB state
   const [products, setProducts] = useState([]);
@@ -33,15 +34,6 @@ export default function App() {
   const [laborCost, setLaborCost] = useState(150);
   const [craftCategory, setCraftCategory] = useState('Pottery / Terracotta');
   const [pricingResult, setPricingResult] = useState(null);
-
-  // Customer Storefront State
-  const [selectedProductForBuy, setSelectedProductForBuy] = useState(null);
-  const [checkoutName, setCheckoutName] = useState('Rohan Sharma');
-  const [checkoutAddress, setCheckoutAddress] = useState('Sector 14, Malviya Nagar, Jaipur, Rajasthan');
-  const [checkoutPhone, setCheckoutPhone] = useState('+91 98765 43210');
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [orderSuccessBanner, setOrderSuccessBanner] = useState(null);
 
   // Copilot State
   const [copilotInput, setCopilotInput] = useState('');
@@ -195,53 +187,6 @@ export default function App() {
     });
   };
 
-  // --- CUSTOMER BUY NOW / CHECKOUT FUNCTION ---
-  const handlePlaceCustomerOrder = async () => {
-    if (!selectedProductForBuy) return;
-    setIsPlacingOrder(true);
-    try {
-      const res = await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: selectedProductForBuy.id,
-          quantity: 1,
-          customer_name: checkoutName,
-          shipping_address: checkoutAddress
-        })
-      });
-
-      let placedOrder;
-      if (res.ok) {
-        placedOrder = await res.json();
-      } else {
-        placedOrder = {
-          id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-          customer_name: checkoutName,
-          total_price: selectedProductForBuy.price,
-          status: 'paid'
-        };
-      }
-
-      setOrders(prev => [placedOrder, ...prev]);
-      setIsPlacingOrder(false);
-      setOrderSuccessBanner(`🎉 Order Placed Successfully! Amount ₹${selectedProductForBuy.price} paid via ${paymentMethod}. Notification sent to Artisan.`);
-      setSelectedProductForBuy(null);
-      await fetchData();
-    } catch (err) {
-      console.error(err);
-      setIsPlacingOrder(false);
-      setOrders(prev => [{
-        id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-        customer_name: checkoutName,
-        total_price: selectedProductForBuy.price,
-        status: 'paid'
-      }, ...prev]);
-      setOrderSuccessBanner(`🎉 Order Placed Successfully! Amount ₹${selectedProductForBuy.price} paid via ${paymentMethod}.`);
-      setSelectedProductForBuy(null);
-    }
-  };
-
   const handleCopilotSend = async (prompt) => {
     if (!prompt.trim()) return;
     setCopilotHistory(prev => [...prev, { sender: 'artisan', content: prompt }]);
@@ -267,7 +212,7 @@ export default function App() {
     }
   };
 
-  // Sample items for Kaarvo Store if DB is empty
+  // Default products for Kaarvo Store if DB has no items yet
   const defaultStoreProducts = [
     { id: 1, title: 'Jaipur Handcrafted Terracotta Water Jug', category: 'Pottery / Terracotta', price: 460, description: '1.5L natural cooling clay pot with traditional relief motifs crafted in Jaipur.', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80', artisan: 'Ramswaroop Prajapat' },
     { id: 2, title: 'Handloom Chanderi Silk Saree — Zari Border', category: 'Textiles / Handloom', price: 1850, description: 'Pure silk Chanderi handwoven saree with gold zari weave by Madhya Pradesh weaver guild.', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80', artisan: 'Sunita Devi' },
@@ -311,16 +256,16 @@ export default function App() {
               KAARVO — AI ARTISAN COMMERCE OS
             </h1>
             <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              SIH26090: MoSJE Market Linkage, AI Cataloger & Storefront App
+              SIH26090: MoSJE Market Linkage, AI Cataloger & Artisan OS
             </p>
           </div>
         </div>
 
-        {/* COMBINED NAVIGATION TABS */}
+        {/* NAVIGATION TABS: DASHBOARD FIRST, 3-PILLAR CATALOGER SECOND */}
         <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
           {[
-            { id: 'cataloger', label: '✨ 3-Pillar Cataloger', icon: Sparkles },
             { id: 'dashboard', label: '🏠 Dashboard & Kaarvo Store', icon: Layers },
+            { id: 'cataloger', label: '✨ 3-Pillar Cataloger', icon: Sparkles },
             { id: 'orders', label: '🛒 Orders', icon: ShoppingBag },
             { id: 'copilot', label: '🤖 Voice Assistant', icon: Mic },
           ].map(tab => {
@@ -356,37 +301,133 @@ export default function App() {
         </span>
       </header>
 
-      {/* SUCCESS NOTIFICATION BANNER */}
-      {orderSuccessBanner && (
-        <div style={{
-          background: 'linear-gradient(90deg, #059669, #10B981)',
-          color: '#fff',
-          padding: '12px 24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontWeight: '600',
-          fontSize: '13px'
-        }}>
-          <span>{orderSuccessBanner}</span>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => setActiveTab('orders')}
-              style={{ background: '#fff', color: '#047857', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}
-            >
-              View in Orders Dashboard →
-            </button>
-            <button onClick={() => setOrderSuccessBanner(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* MAIN CONTAINER */}
       <main style={{ flex: 1, padding: '24px', maxWidth: '1300px', margin: '0 auto', width: '100%' }}>
 
-        {/* TAB 1: 3-PILLAR SMART CATALOGER (SIH26090 SOLUTION) */}
+        {/* TAB 1 (FIRST): DASHBOARD & KAARVO STORE (ARTISAN SELLER VIEW) */}
+        {activeTab === 'dashboard' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            
+            {/* SECTION 1: ARTISAN METRICS OVERVIEW */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Catalog Items</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#3B82F6' }}>{products.length || 3}</div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ ONDC Beckn Synced</div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Customer Orders</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981' }}>{orders.length}</div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ Real-time Sync</div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Artisan Revenue</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#A855F7' }}>
+                  ₹{orders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0) || 1850}
+                </div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ Direct Bank Transfer</div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '20px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Quality Audit Score</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#F59E0B' }}>98/100</div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ MoSJE Certified</div>
+              </div>
+            </div>
+
+            {/* SECTION 2: KAARVO STORE & PRODUCTS CATALOG (SELLER MANAGEMENT VIEW) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="glass-panel gradient-border" style={{
+                padding: '24px',
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(59, 130, 246, 0.12))'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span className="badge badge-published" style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#C084FC', marginBottom: '8px', display: 'inline-block' }}>
+                      📦 Kaarvo Store Catalog
+                    </span>
+                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#fff', marginBottom: '4px' }}>
+                      Live Artisan Products & Inventory
+                    </h2>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      Products cataloged & published by artisans using the AI Studio Image Enhancer, Bhashini Voice Cataloger, and Cost-Plus Pricing Engine.
+                    </p>
+                  </div>
+                  <button className="button-primary" onClick={() => setActiveTab('cataloger')}>
+                    <Sparkles size={16} /> + Add Product via 3-Pillar AI
+                  </button>
+                </div>
+              </div>
+
+              {/* PRODUCTS GRID */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                {displayProducts.map((p, idx) => (
+                  <div key={p.id || idx} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ position: 'relative', height: '180px', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px', background: 'rgba(0,0,0,0.4)' }}>
+                        <img src={p.image || "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>
+                          {p.category || 'Handicraft'}
+                        </span>
+                      </div>
+                      {p.artisan && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#A855F7', marginBottom: '4px' }}>
+                          <MapPin size={12} /> Artisan: {p.artisan}
+                        </div>
+                      )}
+                      <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '6px', lineHeight: '1.3' }}>{p.title}</h3>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>{p.description}</p>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Fair Trade Price</div>
+                          <div style={{ fontSize: '20px', fontWeight: '800', color: '#10B981' }}>₹{p.price}</div>
+                        </div>
+                        <span className="badge badge-published">✓ ONDC Beckn</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SECTION 3: RECENT ORDER ACTIVITY */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Recent Customer Orders Activity</h3>
+                <button className="button-primary" onClick={() => setActiveTab('orders')} style={{ padding: '6px 12px', fontSize: '12px' }}>
+                  View All Orders →
+                </button>
+              </div>
+
+              {orders.length === 0 ? (
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No orders received yet. Active product listings are live on ONDC Network!</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {orders.slice(0, 5).map((o, idx) => (
+                    <div key={idx} style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Customer: {o.customer_name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Address: {o.shipping_address || 'Jaipur, Rajasthan'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#10B981' }}>₹{o.total_price}</div>
+                        <span className="badge badge-published" style={{ fontSize: '10px' }}>{o.status || 'paid'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 2 (SECOND): 3-PILLAR SMART CATALOGER (SIH26090 SOLUTION) */}
         {activeTab === 'cataloger' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
@@ -621,252 +662,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: COMBINED DASHBOARD & KAARVO STORE (ALL IN ONE) */}
-        {activeTab === 'dashboard' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            
-            {/* SECTION 1: METRICS OVERVIEW */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              <div className="glass-panel" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Catalog Items</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#3B82F6' }}>{products.length || 3}</div>
-                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ ONDC Beckn Synced</div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Customer Orders</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981' }}>{orders.length}</div>
-                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ Real-time Sync</div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Artisan Revenue</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#A855F7' }}>
-                  ₹{orders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0) || 1850}
-                </div>
-                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ Direct Bank Transfer</div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '20px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Quality Audit Score</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#F59E0B' }}>98/100</div>
-                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>✓ MoSJE Certified</div>
-              </div>
-            </div>
-
-            {/* SECTION 2: KAARVO STORE (DIRECT MARKETPLACE BUY NOW) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className="glass-panel gradient-border" style={{
-                padding: '24px',
-                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(59, 130, 246, 0.12))'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span className="badge badge-published" style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#C084FC', marginBottom: '8px', display: 'inline-block' }}>
-                      🛍️ Kaarvo Direct Storefront
-                    </span>
-                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#fff', marginBottom: '4px' }}>
-                      Kaarvo Customer Marketplace & Live Buy Now
-                    </h2>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      Browse authentic products cataloged by artisans & place direct orders via ONDC Beckn protocol.
-                    </p>
-                  </div>
-                  <button className="button-primary" onClick={() => setActiveTab('cataloger')}>
-                    <Sparkles size={16} /> + Add Product via AI
-                  </button>
-                </div>
-              </div>
-
-              {/* PRODUCTS GRID WITH BUY NOW BUTTON */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                {displayProducts.map((p, idx) => (
-                  <div key={p.id || idx} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ position: 'relative', height: '180px', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px', background: 'rgba(0,0,0,0.4)' }}>
-                        <img src={p.image || "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>
-                          {p.category || 'Handicraft'}
-                        </span>
-                      </div>
-                      {p.artisan && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#A855F7', marginBottom: '4px' }}>
-                          <MapPin size={12} /> Artisan: {p.artisan}
-                        </div>
-                      )}
-                      <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '6px', lineHeight: '1.3' }}>{p.title}</h3>
-                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>{p.description}</p>
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Fair Trade Price</div>
-                          <div style={{ fontSize: '20px', fontWeight: '800', color: '#10B981' }}>₹{p.price}</div>
-                        </div>
-                        <span className="badge badge-published">✓ ONDC Beckn</span>
-                      </div>
-
-                      <button
-                        className="button-primary"
-                        onClick={() => setSelectedProductForBuy(p)}
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'linear-gradient(135deg, #10B981, #059669)' }}
-                      >
-                        <ShoppingBag size={16} /> ⚡ Buy Now (Kaarvo Store)
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* SECTION 3: RECENT ORDER ACTIVITY */}
-            <div className="glass-panel" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Recent Customer Orders Activity</h3>
-                <button className="button-primary" onClick={() => setActiveTab('orders')} style={{ padding: '6px 12px', fontSize: '12px' }}>
-                  View All Orders →
-                </button>
-              </div>
-
-              {orders.length === 0 ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>No recent orders. Click "⚡ Buy Now" on any product in Kaarvo Store above to place a live test order!</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {orders.slice(0, 5).map((o, idx) => (
-                    <div key={idx} style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>Customer: {o.customer_name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Address: {o.shipping_address || 'Jaipur, Rajasthan'}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#10B981' }}>₹{o.total_price}</div>
-                        <span className="badge badge-published" style={{ fontSize: '10px' }}>{o.status || 'paid'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* CHECKOUT MODAL (WHEN BUY NOW IS CLICKED IN KAARVO STORE) */}
-            {selectedProductForBuy && (
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0,0,0,0.75)',
-                backdropFilter: 'blur(8px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '20px'
-              }}>
-                <div className="glass-panel" style={{ maxWidth: '500px', width: '100%', padding: '28px', borderRadius: '18px', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>🛒 Kaarvo Store Express Checkout</h3>
-                    <button onClick={() => setSelectedProductForBuy(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                      <X size={20} />
-                    </button>
-                  </div>
-
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '14px', borderRadius: '12px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: '50px', height: '50px', borderRadius: '8px', background: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-                      🏺
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{selectedProductForBuy.title}</div>
-                      <div style={{ fontSize: '12px', color: '#10B981', fontWeight: '800', marginTop: '2px' }}>Total: ₹{selectedProductForBuy.price}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Customer Name</label>
-                      <input
-                        type="text"
-                        value={checkoutName}
-                        onChange={(e) => setCheckoutName(e.target.value)}
-                        style={{ width: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Mobile Number</label>
-                      <input
-                        type="text"
-                        value={checkoutPhone}
-                        onChange={(e) => setCheckoutPhone(e.target.value)}
-                        style={{ width: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Delivery Address</label>
-                      <input
-                        type="text"
-                        value={checkoutAddress}
-                        onChange={(e) => setCheckoutAddress(e.target.value)}
-                        style={{ width: '100%', background: 'rgba(0,0,0,0.3)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Payment Method</label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <button
-                          onClick={() => setPaymentMethod('UPI')}
-                          style={{
-                            background: paymentMethod === 'UPI' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0,0,0,0.3)',
-                            border: paymentMethod === 'UPI' ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
-                            color: '#fff',
-                            padding: '10px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          📱 PhonePe / GPay UPI
-                        </button>
-                        <button
-                          onClick={() => setPaymentMethod('COD')}
-                          style={{
-                            background: paymentMethod === 'COD' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0,0,0,0.3)',
-                            border: paymentMethod === 'COD' ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
-                            color: '#fff',
-                            padding: '10px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          💵 Cash on Delivery
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    className="button-primary"
-                    onClick={handlePlaceCustomerOrder}
-                    disabled={isPlacingOrder}
-                    style={{ width: '100%', padding: '12px', fontSize: '14px', background: 'linear-gradient(135deg, #10B981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  >
-                    <CheckCircle size={18} />
-                    {isPlacingOrder ? 'Processing Order...' : `Confirm & Pay ₹${selectedProductForBuy.price}`}
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
         {/* TAB 3: ORDERS DASHBOARD */}
         {activeTab === 'orders' && (
           <div className="glass-panel" style={{ padding: '24px' }}>
@@ -881,7 +676,7 @@ export default function App() {
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
                 <ShoppingBag size={48} color="#3B82F6" style={{ marginBottom: '16px' }} />
                 <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>No Orders Found</h3>
-                <p style={{ fontSize: '13px' }}>Customer orders will appear here once placed on Kaarvo Store.</p>
+                <p style={{ fontSize: '13px' }}>Customer orders received on ONDC network will appear here.</p>
               </div>
             ) : (
               <table style={{ width: '100%', fontSize: '13px', textAlign: 'left', borderCollapse: 'collapse' }}>
