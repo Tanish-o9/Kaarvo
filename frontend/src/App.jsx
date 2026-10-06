@@ -81,9 +81,10 @@ export default function App() {
   const [enhancedImage, setEnhancedImage] = useState(null);
   const [imageEnhancing, setImageEnhancing] = useState(false);
   const [enhancementPreset, setEnhancementPreset] = useState('studio');
+  const [removeBg, setRemoveBg] = useState(true);
 
-  // Process image on HTML5 canvas with studio lighting, backdrop gradient and drop shadow
-  const processCanvasImage = (rawUrl, preset = 'studio') => {
+  // Process image on HTML5 canvas with AI Background Removal & Studio Cutout
+  const processCanvasImage = (rawUrl, preset = 'studio', doBgRemoval = true) => {
     if (!rawUrl) return;
     setImageEnhancing(true);
 
@@ -91,9 +92,6 @@ export default function App() {
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
         const maxDim = 1000;
         let w = img.width || 800;
         let h = img.height || 800;
@@ -107,10 +105,84 @@ export default function App() {
           }
         }
 
-        canvas.width = w;
-        canvas.height = h;
+        // 1. Offscreen Canvas for Subject Cutout & Background Thresholding
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = w;
+        offCanvas.height = h;
+        const offCtx = offCanvas.getContext('2d');
+        offCtx.drawImage(img, 0, 0, w, h);
 
-        // 1. Draw solid clean studio background
+        if (doBgRemoval) {
+          const imgData = offCtx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+
+          // Sample perimeter background pixels (top-left, top-right, bottom-left, bottom-right)
+          const cornerSamples = [];
+          const samplePoints = [
+            0, // top-left
+            (w - 1) * 4, // top-right
+            (h - 1) * w * 4, // bottom-left
+            ((h - 1) * w + (w - 1)) * 4 // bottom-right
+          ];
+
+          samplePoints.forEach(idx => {
+            if (idx >= 0 && idx < data.length - 3) {
+              cornerSamples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
+            }
+          });
+
+          // Average background reference color
+          const bgR = cornerSamples.reduce((s, c) => s + c.r, 0) / (cornerSamples.length || 1);
+          const bgG = cornerSamples.reduce((s, c) => s + c.g, 0) / (cornerSamples.length || 1);
+          const bgB = cornerSamples.reduce((s, c) => s + c.b, 0) / (cornerSamples.length || 1);
+
+          const cx = w / 2;
+          const cy = h / 2;
+          const maxRadius = Math.sqrt(cx * cx + cy * cy);
+
+          // Background Removal Masking Loop
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const idx = (y * w + x) * 4;
+              const r = data[idx];
+              const g = data[idx + 1];
+              const b = data[idx + 2];
+
+              // Color distance from background
+              const colorDist = Math.sqrt(
+                (r - bgR) * (r - bgR) +
+                (g - bgG) * (g - bgG) +
+                (b - bgB) * (b - bgB)
+              );
+
+              // Distance from center of image (protect central handicraft subject)
+              const dx = x - cx;
+              const dy = y - cy;
+              const distFromCenter = Math.sqrt(dx * dx + dy * dy) / maxRadius;
+
+              // Dynamic threshold calculation
+              const threshold = 38 + distFromCenter * 25;
+
+              if (colorDist < threshold || (distFromCenter > 0.82 && colorDist < 75)) {
+                if (colorDist > threshold - 12) {
+                  const alpha = ((colorDist - (threshold - 12)) / 12) * 255;
+                  data[idx + 3] = Math.min(data[idx + 3], alpha);
+                } else {
+                  data[idx + 3] = 0; // Erase background!
+                }
+              }
+            }
+          }
+          offCtx.putImageData(imgData, 0, 0);
+        }
+
+        // 2. Main Studio Canvas Assembly
+        const mainCanvas = document.createElement('canvas');
+        mainCanvas.width = w;
+        mainCanvas.height = h;
+        const ctx = mainCanvas.getContext('2d');
+
+        // Studio Background Color & Spotlight
         if (preset === 'white') {
           ctx.fillStyle = '#FFFFFF';
         } else if (preset === 'warm') {
@@ -120,47 +192,43 @@ export default function App() {
         }
         ctx.fillRect(0, 0, w, h);
 
-        // 2. Radial studio spotlight gradient
         const rx = w / 2;
         const ry = h / 2;
-        const spotGrad = ctx.createRadialGradient(rx, ry * 0.8, w * 0.1, rx, ry, Math.max(w, h) * 0.75);
-        spotGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-        spotGrad.addColorStop(1, preset === 'warm' ? 'rgba(243, 230, 215, 0.5)' : 'rgba(230, 224, 216, 0.5)');
+        const spotGrad = ctx.createRadialGradient(rx, ry * 0.75, w * 0.08, rx, ry, Math.max(w, h) * 0.8);
+        spotGrad.addColorStop(0, '#FFFFFF');
+        spotGrad.addColorStop(1, preset === 'warm' ? '#F3E6D7' : '#EBE6DC');
         ctx.fillStyle = spotGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // 3. Apply color filter preset
+        // Pedestal Shadow under Cutout Subject
+        ctx.save();
+        ctx.shadowColor = 'rgba(28, 25, 23, 0.28)';
+        ctx.shadowBlur = Math.round(w * 0.04);
+        ctx.shadowOffsetY = Math.round(h * 0.03);
+
+        // Filter adjustments
         if (preset === 'warm') {
-          ctx.filter = 'brightness(1.10) contrast(1.22) saturate(1.30) sepia(0.05)';
+          ctx.filter = 'brightness(1.10) contrast(1.22) saturate(1.30)';
         } else if (preset === 'hd') {
           ctx.filter = 'brightness(1.14) contrast(1.35) saturate(1.28)';
         } else if (preset === 'white') {
-          ctx.filter = 'brightness(1.16) contrast(1.25) saturate(1.12)';
+          ctx.filter = 'brightness(1.15) contrast(1.25) saturate(1.10)';
         } else {
-          // studio pro
-          ctx.filter = 'brightness(1.12) contrast(1.25) saturate(1.22)';
+          ctx.filter = 'brightness(1.12) contrast(1.22) saturate(1.20)';
         }
 
-        // 4. Draw image with studio drop shadow
-        ctx.shadowColor = 'rgba(28, 25, 23, 0.22)';
-        ctx.shadowBlur = Math.round(w * 0.035);
-        ctx.shadowOffsetY = Math.round(h * 0.025);
+        const pad = Math.round(w * 0.04);
+        ctx.drawImage(offCanvas, pad, pad, w - pad * 2, h - pad * 2);
+        ctx.restore();
 
-        const pad = Math.round(w * 0.05);
-        ctx.drawImage(img, pad, pad, w - pad * 2, h - pad * 2);
-
-        // Reset filter & shadow
-        ctx.filter = 'none';
-        ctx.shadowColor = 'transparent';
-
-        // 5. Soft studio vignette border
-        const vigGrad = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.35, rx, ry, Math.max(w, h) * 0.8);
+        // Soft Studio Vignette Frame
+        const vigGrad = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.4, rx, ry, Math.max(w, h) * 0.8);
         vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.07)');
+        vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.06)');
         ctx.fillStyle = vigGrad;
         ctx.fillRect(0, 0, w, h);
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        const dataUrl = mainCanvas.toDataURL('image/jpeg', 0.95);
         setEnhancedImage(dataUrl);
         setImageEnhancing(false);
       } catch (err) {
@@ -169,10 +237,12 @@ export default function App() {
         setImageEnhancing(false);
       }
     };
+
     img.onerror = () => {
       setEnhancedImage(rawUrl);
       setImageEnhancing(false);
     };
+
     img.src = rawUrl;
   };
 
@@ -187,8 +257,8 @@ export default function App() {
     reader.onload = (event) => {
       const rawUrl = event.target.result;
       setRawImageFile(rawUrl);
-      processCanvasImage(rawUrl, enhancementPreset);
-      showToast('✨ AI Studio OpenCV Lighting & Background Enhancement Completed!');
+      processCanvasImage(rawUrl, enhancementPreset, removeBg);
+      showToast('✨ AI Background Removal & Studio Cutout Completed!');
     };
 
     reader.readAsDataURL(file);
@@ -1901,6 +1971,33 @@ export default function App() {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Select any image file from your device</div>
                     </label>
 
+                    {/* BACKGROUND REMOVAL TOGGLE */}
+                    <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', padding: '10px 14px', borderRadius: '12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>✨ AI Background Noise Eraser</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Erase room clutter & place item on studio stage</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const nextState = !removeBg;
+                          setRemoveBg(nextState);
+                          if (rawImageFile) processCanvasImage(rawImageFile, enhancementPreset, nextState);
+                        }}
+                        style={{
+                          background: removeBg ? '#10B981' : '#A8A29E',
+                          color: '#FFF',
+                          border: 'none',
+                          padding: '4px 12px',
+                          borderRadius: '14px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {removeBg ? 'CUTOUT ON' : 'OFF'}
+                      </button>
+                    </div>
+
                     {/* STUDIO ENHANCEMENT PRESETS */}
                     <div style={{ marginBottom: '14px' }}>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1917,7 +2014,7 @@ export default function App() {
                             key={p.id}
                             onClick={() => {
                               setEnhancementPreset(p.id);
-                              if (rawImageFile) processCanvasImage(rawImageFile, p.id);
+                              if (rawImageFile) processCanvasImage(rawImageFile, p.id, removeBg);
                             }}
                             style={{
                               background: enhancementPreset === p.id ? 'var(--primary)' : 'var(--bg-subtle)',
@@ -1940,23 +2037,23 @@ export default function App() {
                     {imageEnhancing && (
                       <div style={{ textAlign: 'center', color: 'var(--primary)', fontSize: '13px', padding: '16px', background: 'var(--primary-light)', borderRadius: '12px' }}>
                         <RefreshCw size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
-                        Applying AI Studio Backdrop & Lighting Filter...
+                        Erasing background noise & generating studio pedestal...
                       </div>
                     )}
 
                     {/* BEFORE vs AFTER COMPARISON VIEW */}
                     {rawImageFile && enhancedImage && !imageEnhancing && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle size={14} /> ✨ Studio Enhanced Output
+                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle size={14} /> {removeBg ? '✨ Background Noise Erased • Subject Cutout Isolated' : '✨ Studio Lighting & Color Enhanced'}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '4px' }}>RAW CAMERA CAPTURE</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '4px' }}>RAW (WITH ROOM CLUTTER)</div>
                             <img src={rawImageFile} alt="Raw Input" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#F3F1E9', border: '1px solid var(--border-subtle)' }} />
                           </div>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '800', marginBottom: '4px' }}>AI STUDIO ENHANCED</div>
+                            <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '800', marginBottom: '4px' }}>AI STUDIO CUTOUT</div>
                             <img src={enhancedImage} alt="Enhanced Result" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#FAF9F6', border: '2px solid var(--primary)', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.15)' }} />
                           </div>
                         </div>
