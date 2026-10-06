@@ -629,6 +629,20 @@ export default function App() {
     }
 
     showToast(`🎉 "${newP.title.slice(0, 30)}" Posted Live to Customer Store!`);
+    
+    // Refresh & Reset Studio form for next product listing
+    setEnhancedImage(null);
+    setRawImageFile(null);
+    setVoiceText('');
+    setExtractedEntities(null);
+    setGeneratedCatalog(null);
+    setMaterialCost(180);
+    setLaborCost(150);
+    setPricingResult(null);
+    if (isRecordingRef.current) {
+      stopVoiceRecording();
+    }
+
     switchMode('customer');
     switchCustomerTab('shop');
   };
