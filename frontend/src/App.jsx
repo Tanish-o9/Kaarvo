@@ -9,9 +9,24 @@ import {
 const API_BASE = 'http://127.0.0.1:8000/api/v1';
 
 export default function App() {
-  // FIRST TAB: Dashboard & Kaarvo Store active by default
-  const [activeTab, setActiveTab] = useState('dashboard');
-  
+  // TAB PERSISTENCE: Restore active tab from localStorage or URL hash across refreshes
+  const getInitialTab = () => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['dashboard', 'search', 'cataloger', 'orders', 'copilot'];
+    if (validTabs.includes(hash)) return hash;
+    const saved = localStorage.getItem('kaarvo_active_tab');
+    if (validTabs.includes(saved)) return saved;
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const changeTab = (tabId) => {
+    setActiveTab(tabId);
+    localStorage.setItem('kaarvo_active_tab', tabId);
+    window.location.hash = tabId;
+  };
+
   // Real DB state
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -71,6 +86,15 @@ export default function App() {
   useEffect(() => {
     fetchData();
     calculatePricing(180, 150, 'Pottery / Terracotta');
+
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['dashboard', 'search', 'cataloger', 'orders', 'copilot'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // --- PILLAR 1 FUNCTION: AI Studio Image Enhancer ---
@@ -292,7 +316,7 @@ export default function App() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => changeTab(tab.id)}
                 style={{
                   background: isActive ? 'var(--gradient-main)' : 'transparent',
                   color: isActive ? 'white' : 'var(--text-secondary)',
