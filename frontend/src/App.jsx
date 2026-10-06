@@ -586,68 +586,51 @@ export default function App() {
 
   // Save generated product to DB & Publish Live to Storefront for all customers
   const handleSaveCatalogToDB = async () => {
-    let catalogToSave = generatedCatalog;
-    let targetEntities = extractedEntities;
+    // ALWAYS parse the latest voiceText and inputs from Pillar 1, 2, & 3
+    const { catalog, entities } = parseVoiceTextToCatalog(voiceText || 'Handcrafted Artisan Product');
+    setExtractedEntities(entities);
+    setGeneratedCatalog(catalog);
 
-    if (!catalogToSave) {
-      const { catalog, entities } = parseVoiceTextToCatalog(voiceText || 'Handcrafted Artisan Product');
-      catalogToSave = catalog;
-      targetEntities = entities;
-      setExtractedEntities(entities);
-      setGeneratedCatalog(catalog);
-    }
+    // Pick active image uploaded/enhanced in Pillar 1 or raw image file
+    const activeImage = enhancedImage || rawImageFile || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80';
+
+    // Pick active pricing from Pillar 3 or catalog calculated range
+    const activePrice = pricingResult?.min || catalog.price.suggested_range.min || (parseFloat(materialCost || 0) + parseFloat(laborCost || 0)) * 1.4 || 480;
+
+    const newP = {
+      id: Date.now(),
+      title: catalog.descriptor.name,
+      description: catalog.descriptor.long_desc,
+      price: Math.round(activePrice),
+      originalPrice: Math.round(activePrice * 1.25),
+      category: catalog.category,
+      status: 'published',
+      material_cost: materialCost || 180,
+      labor_cost: laborCost || 150,
+      artisan: 'Ramswaroop Prajapat',
+      location: entities?.region || 'Jaipur, Rajasthan',
+      rating: 5.0,
+      reviewsCount: 1,
+      image: activeImage,
+      badge: 'Newly Posted'
+    };
+
+    // Prepend immediately to products array so it displays at the top of the Customer Storefront
+    setProducts(prev => [newP, ...prev.filter(p => p.id !== newP.id)]);
 
     try {
-      const newP = {
-        title: catalogToSave.descriptor.name,
-        description: catalogToSave.descriptor.long_desc,
-        price: catalogToSave.price.suggested_range.min,
-        category: catalogToSave.category,
-        status: 'published',
-        material_cost: materialCost || 180,
-        labor_cost: laborCost || 150,
-        artisan: 'Ramswaroop Prajapat',
-        location: targetEntities?.region || 'Jaipur, Rajasthan',
-        rating: 5.0,
-        reviewsCount: 1,
-        image: enhancedImage || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'
-      };
-
-      const res = await fetch(`${API_BASE}/products`, {
+      await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newP)
       });
-
-      if (res.ok) {
-        await fetchData();
-      } else {
-        setProducts(prev => [{ id: Date.now(), ...newP }, ...prev]);
-      }
-      showToast('🎉 Product Cataloged & Posted Live to Kaarvo Customer Store!');
-      switchMode('customer');
-      switchCustomerTab('shop');
     } catch (err) {
-      console.error(err);
-      const fallbackP = {
-        id: Date.now(),
-        title: catalogToSave.descriptor.name,
-        description: catalogToSave.descriptor.long_desc,
-        price: catalogToSave.price.suggested_range.min,
-        category: catalogToSave.category,
-        material_cost: materialCost || 180,
-        labor_cost: laborCost || 150,
-        artisan: 'Ramswaroop Prajapat',
-        location: targetEntities?.region || 'Jaipur, Rajasthan',
-        rating: 5.0,
-        reviewsCount: 1,
-        image: enhancedImage || 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'
-      };
-      setProducts(prev => [fallbackP, ...prev]);
-      showToast('🎉 Product Posted Live to Customer Store!');
-      switchMode('customer');
-      switchCustomerTab('shop');
+      console.warn('Backend save notice:', err);
     }
+
+    showToast(`🎉 "${newP.title.slice(0, 30)}" Posted Live to Customer Store!`);
+    switchMode('customer');
+    switchCustomerTab('shop');
   };
 
   // Customer AI Shopping query handler
