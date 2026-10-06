@@ -82,9 +82,10 @@ export default function App() {
   const [imageEnhancing, setImageEnhancing] = useState(false);
   const [enhancementPreset, setEnhancementPreset] = useState('studio');
   const [removeBg, setRemoveBg] = useState(true);
+  const [bgSensitivity, setBgSensitivity] = useState(55);
 
-  // Process image on HTML5 canvas with AI Background Removal & Studio Cutout
-  const processCanvasImage = (rawUrl, preset = 'studio', doBgRemoval = true) => {
+  // Process image on HTML5 canvas with AI Background Removal & Multi-Point Perimeter Sampling
+  const processCanvasImage = (rawUrl, preset = 'studio', doBgRemoval = true, sensitivity = bgSensitivity) => {
     if (!rawUrl) return;
     setImageEnhancing(true);
 
@@ -116,29 +117,30 @@ export default function App() {
           const imgData = offCtx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
-          // Sample perimeter background pixels (top-left, top-right, bottom-left, bottom-right)
-          const cornerSamples = [];
-          const samplePoints = [
-            0, // top-left
-            (w - 1) * 4, // top-right
-            (h - 1) * w * 4, // bottom-left
-            ((h - 1) * w + (w - 1)) * 4 // bottom-right
-          ];
+          // Multi-point Perimeter Background Sampling (Top, Bottom, Left, Right borders)
+          const perimeterSamples = [];
+          const stepX = Math.max(1, Math.floor(w / 30));
+          const stepY = Math.max(1, Math.floor(h / 30));
 
-          samplePoints.forEach(idx => {
-            if (idx >= 0 && idx < data.length - 3) {
-              cornerSamples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
-            }
-          });
-
-          // Average background reference color
-          const bgR = cornerSamples.reduce((s, c) => s + c.r, 0) / (cornerSamples.length || 1);
-          const bgG = cornerSamples.reduce((s, c) => s + c.g, 0) / (cornerSamples.length || 1);
-          const bgB = cornerSamples.reduce((s, c) => s + c.b, 0) / (cornerSamples.length || 1);
+          // Top & Bottom border sampling
+          for (let x = 0; x < w; x += stepX) {
+            let idxTop = (0 * w + x) * 4;
+            let idxBot = ((h - 1) * w + x) * 4;
+            perimeterSamples.push({ r: data[idxTop], g: data[idxTop + 1], b: data[idxTop + 2] });
+            perimeterSamples.push({ r: data[idxBot], g: data[idxBot + 1], b: data[idxBot + 2] });
+          }
+          // Left & Right border sampling
+          for (let y = 0; y < h; y += stepY) {
+            let idxLeft = (y * w + 0) * 4;
+            let idxRight = (y * w + (w - 1)) * 4;
+            perimeterSamples.push({ r: data[idxLeft], g: data[idxLeft + 1], b: data[idxLeft + 2] });
+            perimeterSamples.push({ r: data[idxRight], g: data[idxRight + 1], b: data[idxRight + 2] });
+          }
 
           const cx = w / 2;
           const cy = h / 2;
           const maxRadius = Math.sqrt(cx * cx + cy * cy);
+          const threshVal = Math.max(20, (sensitivity / 100) * 125);
 
           // Background Removal Masking Loop
           for (let y = 0; y < h; y++) {
@@ -148,24 +150,28 @@ export default function App() {
               const g = data[idx + 1];
               const b = data[idx + 2];
 
-              // Color distance from background
-              const colorDist = Math.sqrt(
-                (r - bgR) * (r - bgR) +
-                (g - bgG) * (g - bgG) +
-                (b - bgB) * (b - bgB)
-              );
+              // Find minimum color distance to perimeter background samples
+              let minDist = 999;
+              for (let i = 0; i < perimeterSamples.length; i += 4) {
+                const sample = perimeterSamples[i];
+                const dr = r - sample.r;
+                const dg = g - sample.g;
+                const db = b - sample.b;
+                const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+                if (dist < minDist) minDist = dist;
+              }
 
               // Distance from center of image (protect central handicraft subject)
               const dx = x - cx;
               const dy = y - cy;
               const distFromCenter = Math.sqrt(dx * dx + dy * dy) / maxRadius;
 
-              // Dynamic threshold calculation
-              const threshold = 38 + distFromCenter * 25;
+              // Dynamic threshold calculation with center protection weighting
+              const effectiveThreshold = threshVal + distFromCenter * 35;
 
-              if (colorDist < threshold || (distFromCenter > 0.82 && colorDist < 75)) {
-                if (colorDist > threshold - 12) {
-                  const alpha = ((colorDist - (threshold - 12)) / 12) * 255;
+              if (minDist < effectiveThreshold || (distFromCenter > 0.76 && minDist < effectiveThreshold * 1.6)) {
+                if (minDist > effectiveThreshold - 16) {
+                  const alpha = ((minDist - (effectiveThreshold - 16)) / 16) * 255;
                   data[idx + 3] = Math.min(data[idx + 3], alpha);
                 } else {
                   data[idx + 3] = 0; // Erase background!
@@ -1971,31 +1977,59 @@ export default function App() {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Select any image file from your device</div>
                     </label>
 
-                    {/* BACKGROUND REMOVAL TOGGLE */}
-                    <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', padding: '10px 14px', borderRadius: '12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>✨ AI Background Noise Eraser</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Erase room clutter & place item on studio stage</div>
+                    {/* BACKGROUND REMOVAL TOGGLE & SLIDER */}
+                    <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', padding: '12px 14px', borderRadius: '12px', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: removeBg ? '10px' : '0' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>✨ AI Background Noise Eraser</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Multi-point perimeter sampling & clutter cutout</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const nextState = !removeBg;
+                            setRemoveBg(nextState);
+                            if (rawImageFile) processCanvasImage(rawImageFile, enhancementPreset, nextState, bgSensitivity);
+                          }}
+                          style={{
+                            background: removeBg ? '#10B981' : '#A8A29E',
+                            color: '#FFF',
+                            border: 'none',
+                            padding: '4px 12px',
+                            borderRadius: '14px',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {removeBg ? 'CUTOUT ON' : 'OFF'}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          const nextState = !removeBg;
-                          setRemoveBg(nextState);
-                          if (rawImageFile) processCanvasImage(rawImageFile, enhancementPreset, nextState);
-                        }}
-                        style={{
-                          background: removeBg ? '#10B981' : '#A8A29E',
-                          color: '#FFF',
-                          border: 'none',
-                          padding: '4px 12px',
-                          borderRadius: '14px',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {removeBg ? 'CUTOUT ON' : 'OFF'}
-                      </button>
+
+                      {removeBg && (
+                        <div style={{ background: '#FFFFFF', padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--primary-border)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>
+                            <span>Background Erase Power:</span>
+                            <span style={{ color: 'var(--primary)', fontWeight: '800' }}>{bgSensitivity}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="25"
+                            max="90"
+                            value={bgSensitivity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              setBgSensitivity(val);
+                              if (rawImageFile) processCanvasImage(rawImageFile, enhancementPreset, removeBg, val);
+                            }}
+                            style={{ width: '100%', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            <span>Light Clutter</span>
+                            <span>Balanced</span>
+                            <span>Heavy Clutter / Room</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* STUDIO ENHANCEMENT PRESETS */}
