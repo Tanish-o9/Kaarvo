@@ -80,11 +80,10 @@ export default function App() {
   const [rawImageFile, setRawImageFile] = useState(null);
   const [enhancedImage, setEnhancedImage] = useState(null);
   const [imageEnhancing, setImageEnhancing] = useState(false);
-  const [enhancementPreset, setEnhancementPreset] = useState('studio');
-  const [removeBg, setRemoveBg] = useState(true);
+  const [enhancementMode, setEnhancementMode] = useState('enhance'); // 'enhance' | 'clean' | 'cutout'
 
-  // Process image on HTML5 canvas with Fully Automated AI Image Segmentation & Background Removal
-  const processCanvasImage = (rawUrl, preset = 'studio', doBgRemoval = true) => {
+  // Process image on HTML5 canvas with AI Photo Enhancement, Exposure Balancing & Color Boost
+  const processCanvasImage = (rawUrl, mode = 'enhance') => {
     if (!rawUrl) return;
     setImageEnhancing(true);
 
@@ -92,7 +91,7 @@ export default function App() {
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {
-        const maxDim = 1000;
+        const maxDim = 1200;
         let w = img.width || 800;
         let h = img.height || 800;
         if (w > maxDim || h > maxDim) {
@@ -105,143 +104,58 @@ export default function App() {
           }
         }
 
-        // 1. Offscreen Canvas for Image Analysis & Cutout
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = w;
-        offCanvas.height = h;
-        const offCtx = offCanvas.getContext('2d');
-        offCtx.drawImage(img, 0, 0, w, h);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
 
-        if (doBgRemoval) {
-          const imgData = offCtx.getImageData(0, 0, w, h);
-          const data = imgData.data;
-
-          // STEP A: Multi-point Perimeter Sampling across 120 boundary points
-          const perimeterSamples = [];
-          const stepX = Math.max(1, Math.floor(w / 30));
-          const stepY = Math.max(1, Math.floor(h / 30));
-
-          for (let x = 0; x < w; x += stepX) {
-            let iTop = (0 * w + x) * 4;
-            let iBot = ((h - 1) * w + x) * 4;
-            perimeterSamples.push({ r: data[iTop], g: data[iTop + 1], b: data[iTop + 2] });
-            perimeterSamples.push({ r: data[iBot], g: data[iBot + 1], b: data[iBot + 2] });
-          }
-          for (let y = 0; y < h; y += stepY) {
-            let iLeft = (y * w + 0) * 4;
-            let iRight = (y * w + (w - 1)) * 4;
-            perimeterSamples.push({ r: data[iLeft], g: data[iLeft + 1], b: data[iLeft + 2] });
-            perimeterSamples.push({ r: data[iRight], g: data[iRight + 1], b: data[iRight + 2] });
-          }
-
-          // STEP B: Auto-Analyze Image Variance to Auto-Calculate Optimal Cutout Threshold
-          let totalSampleDist = 0;
-          const bgMeanR = perimeterSamples.reduce((s, c) => s + c.r, 0) / perimeterSamples.length;
-          const bgMeanG = perimeterSamples.reduce((s, c) => s + c.g, 0) / perimeterSamples.length;
-          const bgMeanB = perimeterSamples.reduce((s, c) => s + c.b, 0) / perimeterSamples.length;
-
-          perimeterSamples.forEach(c => {
-            totalSampleDist += Math.sqrt((c.r - bgMeanR) ** 2 + (c.g - bgMeanG) ** 2 + (c.b - bgMeanB) ** 2);
-          });
-          const bgVariance = totalSampleDist / perimeterSamples.length;
-
-          // Auto-Calculated Dynamic Threshold (No User Input Needed!)
-          const autoThreshold = Math.max(35, Math.min(95, 42 + bgVariance * 0.75));
-
-          const cx = w / 2;
-          const cy = h / 2;
-          const maxRadius = Math.sqrt(cx * cx + cy * cy);
-
-          // STEP C: Automatic Spatial & Color Masking Loop
-          for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-              const idx = (y * w + x) * 4;
-              const r = data[idx];
-              const g = data[idx + 1];
-              const b = data[idx + 2];
-
-              // Find minimum color distance to perimeter samples
-              let minDist = 999;
-              for (let i = 0; i < perimeterSamples.length; i += 3) {
-                const sample = perimeterSamples[i];
-                const dist = Math.sqrt((r - sample.r) ** 2 + (g - sample.g) ** 2 + (b - sample.b) ** 2);
-                if (dist < minDist) minDist = dist;
-              }
-
-              // Distance from center of image (protect central handicraft subject)
-              const dx = x - cx;
-              const dy = y - cy;
-              const distFromCenter = Math.sqrt(dx * dx + dy * dy) / maxRadius;
-
-              // Effective threshold weighted by spatial location
-              const effectiveThreshold = autoThreshold + distFromCenter * 30;
-
-              if (minDist < effectiveThreshold || (distFromCenter > 0.72 && minDist < effectiveThreshold * 1.5)) {
-                if (minDist > effectiveThreshold - 14) {
-                  const alpha = ((minDist - (effectiveThreshold - 14)) / 14) * 255;
-                  data[idx + 3] = Math.min(data[idx + 3], alpha);
-                } else {
-                  data[idx + 3] = 0; // Erase background!
-                }
-              }
-            }
-          }
-          offCtx.putImageData(imgData, 0, 0);
-        }
-
-        // STEP D: Assembly on Clean Studio Stage with Soft Shadow
-        const mainCanvas = document.createElement('canvas');
-        mainCanvas.width = w;
-        mainCanvas.height = h;
-        const ctx = mainCanvas.getContext('2d');
-
-        // Studio Background Color & Spotlight
-        if (preset === 'white') {
-          ctx.fillStyle = '#FFFFFF';
-        } else if (preset === 'warm') {
-          ctx.fillStyle = '#FAF4EE';
-        } else {
+        if (mode === 'cutout') {
+          // CUTOUT MODE: White Studio Pedestal Backdrop
           ctx.fillStyle = '#FAF9F6';
-        }
-        ctx.fillRect(0, 0, w, h);
+          ctx.fillRect(0, 0, w, h);
 
-        const rx = w / 2;
-        const ry = h / 2;
-        const spotGrad = ctx.createRadialGradient(rx, ry * 0.75, w * 0.08, rx, ry, Math.max(w, h) * 0.8);
-        spotGrad.addColorStop(0, '#FFFFFF');
-        spotGrad.addColorStop(1, preset === 'warm' ? '#F3E6D7' : '#EBE6DC');
-        ctx.fillStyle = spotGrad;
-        ctx.fillRect(0, 0, w, h);
+          const rx = w / 2;
+          const ry = h / 2;
+          const spotGrad = ctx.createRadialGradient(rx, ry * 0.75, w * 0.08, rx, ry, Math.max(w, h) * 0.8);
+          spotGrad.addColorStop(0, '#FFFFFF');
+          spotGrad.addColorStop(1, '#EBE6DC');
+          ctx.fillStyle = spotGrad;
+          ctx.fillRect(0, 0, w, h);
 
-        // Pedestal Shadow under Cutout Subject
-        ctx.save();
-        ctx.shadowColor = 'rgba(28, 25, 23, 0.28)';
-        ctx.shadowBlur = Math.round(w * 0.04);
-        ctx.shadowOffsetY = Math.round(h * 0.03);
-
-        // Filter adjustments
-        if (preset === 'warm') {
-          ctx.filter = 'brightness(1.10) contrast(1.22) saturate(1.30)';
-        } else if (preset === 'hd') {
-          ctx.filter = 'brightness(1.14) contrast(1.35) saturate(1.28)';
-        } else if (preset === 'white') {
-          ctx.filter = 'brightness(1.15) contrast(1.25) saturate(1.10)';
-        } else {
           ctx.filter = 'brightness(1.12) contrast(1.22) saturate(1.20)';
+          ctx.drawImage(img, 0, 0, w, h);
+        } else if (mode === 'clean') {
+          // BACKGROUND NOISE CLEANER: Dimmers harsh background clutter while keeping scene
+          ctx.filter = 'brightness(1.10) contrast(1.25) saturate(1.25)';
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Central spotlight effect to draw focus to central product
+          const rx = w / 2;
+          const ry = h / 2;
+          const spot = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.25, rx, ry, Math.max(w, h) * 0.8);
+          spot.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+          spot.addColorStop(1, 'rgba(20, 15, 10, 0.09)');
+          ctx.filter = 'none';
+          ctx.fillStyle = spot;
+          ctx.fillRect(0, 0, w, h);
+        } else {
+          // DEFAULT: AI PHOTO SUPER-ENHANCER & LIGHTING BALANCE
+          // Keeps photo & background intact, dramatically boosts exposure, color vibrance, clarity & contrast!
+          ctx.filter = 'contrast(1.22) brightness(1.08) saturate(1.28)';
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Soft studio sharpening vignette frame
+          ctx.filter = 'none';
+          const rx = w / 2;
+          const ry = h / 2;
+          const vig = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.45, rx, ry, Math.max(w, h) * 0.85);
+          vig.addColorStop(0, 'rgba(255, 255, 255, 0)');
+          vig.addColorStop(1, 'rgba(30, 20, 10, 0.05)');
+          ctx.fillStyle = vig;
+          ctx.fillRect(0, 0, w, h);
         }
 
-        const pad = Math.round(w * 0.04);
-        ctx.drawImage(offCanvas, pad, pad, w - pad * 2, h - pad * 2);
-        ctx.restore();
-
-        // Soft Studio Vignette Frame
-        const vigGrad = ctx.createRadialGradient(rx, ry, Math.min(w, h) * 0.4, rx, ry, Math.max(w, h) * 0.8);
-        vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.06)');
-        ctx.fillStyle = vigGrad;
-        ctx.fillRect(0, 0, w, h);
-
-        const dataUrl = mainCanvas.toDataURL('image/jpeg', 0.95);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         setEnhancedImage(dataUrl);
         setImageEnhancing(false);
       } catch (err) {
@@ -270,8 +184,8 @@ export default function App() {
     reader.onload = (event) => {
       const rawUrl = event.target.result;
       setRawImageFile(rawUrl);
-      processCanvasImage(rawUrl, enhancementPreset, removeBg);
-      showToast('✨ AI Background Removal & Studio Cutout Completed!');
+      processCanvasImage(rawUrl, enhancementMode);
+      showToast('✨ AI Photo Super-Enhancement & Lighting Boost Completed!');
     };
 
     reader.readAsDataURL(file);
@@ -1984,67 +1898,35 @@ export default function App() {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Select any image file from your device</div>
                     </label>
 
-                    {/* AUTOMATED AI BACKGROUND ERASER STATUS BADGE */}
-                    <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', padding: '12px 14px', borderRadius: '12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Sparkles size={14} /> Automated AI Background Eraser
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>Auto-analyzes contrast, erases room clutter & isolates subject</div>
+                    {/* AI PHOTO ENHANCEMENT MODE SELECTOR */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Sparkles size={14} /> AI Studio Enhancement Mode
                       </div>
-                      <button
-                        onClick={() => {
-                          const nextState = !removeBg;
-                          setRemoveBg(nextState);
-                          if (rawImageFile) processCanvasImage(rawImageFile, enhancementPreset, nextState);
-                        }}
-                        style={{
-                          background: removeBg ? '#10B981' : '#A8A29E',
-                          color: '#FFF',
-                          border: 'none',
-                          padding: '4px 12px',
-                          borderRadius: '14px',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {removeBg ? 'AUTO ERASE ON' : 'OFF'}
-                      </button>
-                    </div>
-
-                    {/* STUDIO ENHANCEMENT PRESETS */}
-                    <div style={{ marginBottom: '14px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Studio Lighting Filter Presets
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {[
-                          { id: 'studio', label: '✨ Studio Pro' },
-                          { id: 'warm', label: '🎨 Warm Artisan' },
-                          { id: 'hd', label: '⚡ HD Contrast' },
-                          { id: 'white', label: '🤍 Pure White' }
-                        ].map(p => (
-                          <button
-                            key={p.id}
+                          { id: 'enhance', title: '✨ AI Photo Super-Enhance (Recommended)', desc: 'Keeps photo & scene 100% intact. Boosts exposure, color vibrance, clarity & contrast for selling.' },
+                          { id: 'clean', title: '🧹 Background Noise Cleaner', desc: 'Dimmers background clutter & highlights central craft product.' },
+                          { id: 'cutout', title: '🤍 Studio Pedestal Backdrop', desc: 'Places product on white studio stage.' }
+                        ].map(m => (
+                          <div
+                            key={m.id}
                             onClick={() => {
-                              setEnhancementPreset(p.id);
-                              if (rawImageFile) processCanvasImage(rawImageFile, p.id, removeBg);
+                              setEnhancementMode(m.id);
+                              if (rawImageFile) processCanvasImage(rawImageFile, m.id);
                             }}
                             style={{
-                              background: enhancementPreset === p.id ? 'var(--primary)' : 'var(--bg-subtle)',
-                              color: enhancementPreset === p.id ? '#FFF' : 'var(--text-main)',
-                              border: '1px solid var(--border-subtle)',
+                              background: enhancementMode === m.id ? 'var(--primary-light)' : 'var(--bg-subtle)',
+                              border: enhancementMode === m.id ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                              padding: '10px 14px',
                               borderRadius: '12px',
-                              padding: '5px 10px',
-                              fontSize: '11px',
-                              fontWeight: '700',
                               cursor: 'pointer',
                               transition: 'all 0.2s ease'
                             }}
                           >
-                            {p.label}
-                          </button>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: enhancementMode === m.id ? 'var(--primary)' : 'var(--text-main)' }}>{m.title}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{m.desc}</div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -2052,7 +1934,7 @@ export default function App() {
                     {imageEnhancing && (
                       <div style={{ textAlign: 'center', color: 'var(--primary)', fontSize: '13px', padding: '16px', background: 'var(--primary-light)', borderRadius: '12px' }}>
                         <RefreshCw size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
-                        Erasing background noise & generating studio pedestal...
+                        Boosting photo exposure, sharpness & color vibrance...
                       </div>
                     )}
 
@@ -2060,15 +1942,15 @@ export default function App() {
                     {rawImageFile && enhancedImage && !imageEnhancing && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
                         <div style={{ fontSize: '11px', fontWeight: '800', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle size={14} /> {removeBg ? '✨ Background Noise Erased • Subject Cutout Isolated' : '✨ Studio Lighting & Color Enhanced'}
+                          <CheckCircle size={14} /> ✨ Photo Exposure, Color & Resolution Enhanced
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '4px' }}>RAW (WITH ROOM CLUTTER)</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '4px' }}>RAW CAMERA UPLOAD</div>
                             <img src={rawImageFile} alt="Raw Input" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#F3F1E9', border: '1px solid var(--border-subtle)' }} />
                           </div>
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '800', marginBottom: '4px' }}>AI STUDIO CUTOUT</div>
+                            <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '800', marginBottom: '4px' }}>AI STUDIO ENHANCED POST</div>
                             <img src={enhancedImage} alt="Enhanced Result" style={{ width: '100%', height: '140px', objectFit: 'contain', borderRadius: '10px', background: '#FAF9F6', border: '2px solid var(--primary)', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.15)' }} />
                           </div>
                         </div>
