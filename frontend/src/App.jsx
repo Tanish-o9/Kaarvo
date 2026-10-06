@@ -3,7 +3,7 @@ import {
   Sparkles, Camera, Mic, ShoppingBag, Layers,
   Package, Users, Sliders, TrendingUp, Send, CheckCircle,
   FileText, ArrowRight, ShieldCheck, RefreshCw, Volume2, Globe,
-  CreditCard, Check, X, Star, MapPin, Store
+  CreditCard, Check, X, Star, MapPin, Store, Search, Filter
 } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api/v1';
@@ -34,6 +34,10 @@ export default function App() {
   const [laborCost, setLaborCost] = useState(150);
   const [craftCategory, setCraftCategory] = useState('Pottery / Terracotta');
   const [pricingResult, setPricingResult] = useState(null);
+
+  // --- KAARVO SEARCH TAB STATES ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCategoryFilter, setSearchCategoryFilter] = useState('All');
 
   // Copilot State
   const [copilotInput, setCopilotInput] = useState('');
@@ -221,6 +225,19 @@ export default function App() {
 
   const displayProducts = products.length > 0 ? products : defaultStoreProducts;
 
+  // Filtered products for Kaarvo Search Tab
+  const searchFilteredProducts = displayProducts.filter(p => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchCategory = searchCategoryFilter === 'All' || (p.category && p.category.toLowerCase().includes(searchCategoryFilter.toLowerCase()));
+    const matchText = !q || (
+      (p.title && p.title.toLowerCase().includes(q)) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q)) ||
+      (p.artisan && p.artisan.toLowerCase().includes(q))
+    );
+    return matchCategory && matchText;
+  });
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090D16', color: '#fff' }}>
       
@@ -261,11 +278,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* NAVIGATION TABS: DASHBOARD FIRST, 3-PILLAR CATALOGER SECOND */}
+        {/* NAVIGATION TABS: DASHBOARD 1ST, CATALOGER 2ND, KAARVO SEARCH 3RD */}
         <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
           {[
             { id: 'dashboard', label: '🏠 Dashboard & Kaarvo Store', icon: Layers },
             { id: 'cataloger', label: '✨ 3-Pillar Cataloger', icon: Sparkles },
+            { id: 'search', label: '🔍 Kaarvo Search', icon: Search },
             { id: 'orders', label: '🛒 Orders', icon: ShoppingBag },
             { id: 'copilot', label: '🤖 Voice Assistant', icon: Mic },
           ].map(tab => {
@@ -279,17 +297,17 @@ export default function App() {
                   background: isActive ? 'var(--gradient-main)' : 'transparent',
                   color: isActive ? 'white' : 'var(--text-secondary)',
                   border: 'none',
-                  padding: '8px 18px',
+                  padding: '8px 16px',
                   borderRadius: '8px',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '6px'
                 }}
               >
-                <Icon size={15} />
+                <Icon size={14} />
                 {tab.label}
               </button>
             );
@@ -304,7 +322,7 @@ export default function App() {
       {/* MAIN CONTAINER */}
       <main style={{ flex: 1, padding: '24px', maxWidth: '1300px', margin: '0 auto', width: '100%' }}>
 
-        {/* TAB 1 (FIRST): DASHBOARD & KAARVO STORE (ARTISAN SELLER VIEW) */}
+        {/* TAB 1: DASHBOARD & KAARVO STORE (ARTISAN SELLER VIEW) */}
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             
@@ -427,7 +445,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2 (SECOND): 3-PILLAR SMART CATALOGER (SIH26090 SOLUTION) */}
+        {/* TAB 2: 3-PILLAR SMART CATALOGER (SIH26090 SOLUTION) */}
         {activeTab === 'cataloger' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
@@ -662,7 +680,134 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: ORDERS DASHBOARD */}
+        {/* TAB 3: KAARVO SEARCH (SEARCH FUNCTIONALITY RIGHT AFTER 3-PILLAR CATALOGER) */}
+        {activeTab === 'search' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* SEARCH HERO PANEL */}
+            <div className="glass-panel gradient-border" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(168, 85, 247, 0.15))' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '8px' }}>
+                🔍 Kaarvo Smart Multilingual Product Search
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Search across all artisan products by craft, material (terracotta, silk, brass), artisan region, or title.
+              </p>
+
+              {/* SEARCH INPUT BAR */}
+              <div style={{ position: 'relative', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={18} color="#94A3B8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Type to search e.g. 'Jaipur terracotta', 'Chanderi silk', 'Brass dhokra'..."
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px 14px 48px',
+                      borderRadius: '12px',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* CATEGORY FILTER PILLS */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Filter size={12} /> Filter:
+                </span>
+                {['All', 'Terracotta', 'Textiles', 'Metal', 'Woodwork', 'Jewelry'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSearchCategoryFilter(cat)}
+                    style={{
+                      background: searchCategoryFilter === cat ? 'var(--gradient-main)' : 'rgba(255,255,255,0.06)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SEARCH RESULTS FEED */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>
+                  Search Results ({searchFilteredProducts.length} items)
+                </h3>
+                {searchQuery && (
+                  <span style={{ fontSize: '12px', color: '#A855F7' }}>
+                    Showing results matching "{searchQuery}"
+                  </span>
+                )}
+              </div>
+
+              {searchFilteredProducts.length === 0 ? (
+                <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
+                  <Search size={48} color="#94A3B8" style={{ marginBottom: '16px' }} />
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>No Products Found</h3>
+                  <p style={{ fontSize: '13px' }}>No items match "{searchQuery}". Try searching "terracotta", "silk", or "brass"!</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                  {searchFilteredProducts.map((p, idx) => (
+                    <div key={p.id || idx} className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ position: 'relative', height: '180px', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px', background: 'rgba(0,0,0,0.4)' }}>
+                          <img src={p.image || "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80"} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <span style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>
+                            {p.category || 'Handicraft'}
+                          </span>
+                        </div>
+                        {p.artisan && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#A855F7', marginBottom: '4px' }}>
+                            <MapPin size={12} /> Artisan: {p.artisan}
+                          </div>
+                        )}
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '6px', lineHeight: '1.3' }}>{p.title}</h3>
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>{p.description}</p>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Price</div>
+                            <div style={{ fontSize: '20px', fontWeight: '800', color: '#10B981' }}>₹{p.price}</div>
+                          </div>
+                          <span className="badge badge-published">✓ ONDC Beckn</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 4: ORDERS DASHBOARD */}
         {activeTab === 'orders' && (
           <div className="glass-panel" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -707,7 +852,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: VOICE COPILOT */}
+        {/* TAB 5: VOICE COPILOT */}
         {activeTab === 'copilot' && (
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '16px' }}>🤖 Artisan Voice Assistant</h2>
