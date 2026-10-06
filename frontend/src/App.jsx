@@ -4,7 +4,7 @@ import {
   TrendingUp, Send, CheckCircle, FileText, ArrowRight, ShieldCheck, RefreshCw,
   Globe, CreditCard, Check, X, Star, MapPin, Search, Filter, Heart,
   ShoppingCart, ChevronRight, MessageSquare, Award, ArrowUpRight, HelpCircle,
-  Truck, ShieldAlert, Zap, Compass, Store, Settings, PieChart, Tag, RefreshCcw, Home
+  Truck, ShieldAlert, Zap, Compass, Store, Settings, PieChart, Tag, RefreshCcw, Home, Trash2
 } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api/v1';
@@ -647,6 +647,32 @@ export default function App() {
     switchCustomerTab('shop');
   };
 
+  // Delete product handler for artisan/user
+  const handleDeleteProduct = async (productId, e) => {
+    if (e) e.stopPropagation();
+
+    const targetProduct = products.find(p => p.id === productId);
+    const title = targetProduct ? targetProduct.title : 'this product';
+
+    if (!window.confirm(`Are you sure you want to delete "${title}" from your store?`)) {
+      return;
+    }
+
+    try {
+      await fetch(`${API_BASE}/products/${productId}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Backend delete notice:', err);
+    }
+
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    if (selectedProduct && selectedProduct.id === productId) {
+      setSelectedProduct(null);
+    }
+    showToast(`🗑️ Product "${title.slice(0, 22)}..." deleted successfully!`);
+  };
+
   // Customer AI Shopping query handler
   const handleAiShoppingQuery = (promptText) => {
     const q = promptText || aiShoppingInput;
@@ -1167,6 +1193,31 @@ export default function App() {
                                 <Heart size={18} color={wishlist.includes(p.id) ? '#E11D48' : '#78716C'} fill={wishlist.includes(p.id) ? '#E11D48' : 'none'} />
                               </button>
 
+                              <button
+                                onClick={(e) => handleDeleteProduct(p.id, e)}
+                                title="Delete Product"
+                                style={{
+                                  position: 'absolute',
+                                  top: '12px',
+                                  left: '12px',
+                                  background: 'rgba(239, 68, 68, 0.95)',
+                                  color: '#FFFFFF',
+                                  backdropFilter: 'blur(4px)',
+                                  border: 'none',
+                                  width: '34px',
+                                  height: '34px',
+                                  borderRadius: '50%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  zIndex: 2,
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                                }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+
                               <span className="badge-tag badge-terracotta" style={{ position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(255,255,255,0.94)' }}>
                                 {p.badge || 'Fair Trade'}
                               </span>
@@ -1487,6 +1538,31 @@ export default function App() {
                         <div>
                           <div className="product-card-img-wrapper" style={{ height: '240px' }}>
                             <img src={p.image} alt={p.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button
+                              onClick={(e) => handleDeleteProduct(p.id, e)}
+                              title="Delete Product"
+                              style={{
+                                position: 'absolute',
+                                top: '12px',
+                                left: '12px',
+                                background: 'rgba(239, 68, 68, 0.95)',
+                                color: '#FFFFFF',
+                                backdropFilter: 'blur(4px)',
+                                border: 'none',
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                zIndex: 2,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+
                             <span className="badge-tag badge-terracotta" style={{ position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(255,255,255,0.94)' }}>
                               {p.category}
                             </span>
@@ -1697,7 +1773,7 @@ export default function App() {
                       <div style={{ color: 'var(--text-muted)' }}>Material: ₹180 | Artisan Labor: ₹150 | Fair Margin: 40%</div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                       <button
                         className="btn-artisan-primary"
                         onClick={(e) => {
@@ -1718,6 +1794,23 @@ export default function App() {
                         style={{ flex: 1, padding: '14px' }}
                       >
                         Buy Now
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteProduct(selectedProduct.id, e)}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid #ef4444',
+                          color: '#ef4444',
+                          padding: '14px 18px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <Trash2 size={18} /> Delete Item
                       </button>
                     </div>
                   </div>
@@ -2079,6 +2172,79 @@ export default function App() {
                         ))}
                       </tbody>
                     </table>
+                  )}
+                </div>
+
+                {/* PUBLISHED PRODUCTS INVENTORY MANAGEMENT TABLE */}
+                <div className="card-artisan" style={{ padding: '28px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Your Published Products & Catalog ({products.length})</h3>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Manage your live published items, view ONDC Beckn compliance, or unlist/delete products.
+                      </p>
+                    </div>
+                    <button className="btn-artisan-primary" onClick={() => switchArtisanTab('studio')} style={{ padding: '8px 16px', fontSize: '12px' }}>
+                      + Add New Product
+                    </button>
+                  </div>
+
+                  {products.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '14px' }}>
+                      No products published yet.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Product</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Category</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Price</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+                            <th style={{ padding: '12px', textAlign: 'right' }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {products.map((p) => (
+                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <img src={p.image} alt={p.title} style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px' }} />
+                                <div>
+                                  <div style={{ fontWeight: '700', color: 'var(--text-main)' }}>{p.title}</div>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: #{p.id} • {p.artisan}</div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{p.category}</td>
+                              <td style={{ padding: '12px', fontWeight: '800', color: 'var(--text-main)' }}>₹{p.price}</td>
+                              <td style={{ padding: '12px' }}>
+                                <span className="badge-tag badge-teal">✓ ONDC Live</span>
+                              </td>
+                              <td style={{ padding: '12px', textAlign: 'right' }}>
+                                <button
+                                  onClick={(e) => handleDeleteProduct(p.id, e)}
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid #ef4444',
+                                    color: '#ef4444',
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
 
