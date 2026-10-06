@@ -278,12 +278,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* NAVIGATION TABS: DASHBOARD 1ST, CATALOGER 2ND, KAARVO SEARCH 3RD */}
+        {/* NAVIGATION TABS: DASHBOARD 1ST, KAARVO SEARCH 2ND, CATALOGER 3RD */}
         <nav style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
           {[
             { id: 'dashboard', label: '🏠 Dashboard & Kaarvo Store', icon: Layers },
-            { id: 'cataloger', label: '✨ 3-Pillar Cataloger', icon: Sparkles },
             { id: 'search', label: '🔍 Kaarvo Search', icon: Search },
+            { id: 'cataloger', label: '✨ 3-Pillar Cataloger', icon: Sparkles },
             { id: 'orders', label: '🛒 Orders', icon: ShoppingBag },
             { id: 'copilot', label: '🤖 Voice Assistant', icon: Mic },
           ].map(tab => {
